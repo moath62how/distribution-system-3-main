@@ -61,6 +61,11 @@ async function loadAdministrationDetails() {
         const data = await response.json();
         currentAdministration = data.administration;
 
+        // Store the full data for edit operations
+        currentAdministration.capital_injections = data.capital_injections;
+        currentAdministration.withdrawals = data.withdrawals;
+        currentAdministration.payments = data.payments;
+
         displayAdministrationInfo(data.administration);
         displayFinancialSummary(data.totals);
         displayCapitalInjections(data.capital_injections);
@@ -354,6 +359,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Form submissions
     document.getElementById('capitalInjectionForm').addEventListener('submit', handleCapitalInjectionSubmit);
+    document.getElementById('withdrawalForm').addEventListener('submit', handleWithdrawalSubmit);
+    document.getElementById('paymentForm').addEventListener('submit', handlePaymentSubmit);
 
     // Edit administration button
     document.getElementById('editAdministrationBtn').addEventListener('click', function () {
@@ -370,29 +377,270 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // Placeholder functions for edit/delete operations
 function editCapitalInjection(id) {
-    console.log('Edit capital injection:', id);
-    // Implementation would be similar to other edit functions
+    const injection = currentAdministration?.capital_injections?.find(inj => inj.id === id);
+    if (!injection) return;
+
+    document.getElementById('capitalInjectionModalTitle').textContent = 'تعديل ضخ رأس المال';
+    document.getElementById('injectionAmount').value = injection.amount;
+    document.getElementById('injectionProject').value = injection.project_id;
+    document.getElementById('injectionDate').value = injection.date?.split('T')[0];
+    document.getElementById('injectionNotes').value = injection.notes || '';
+    document.getElementById('capitalInjectionForm').dataset.injectionId = id;
+    document.getElementById('capitalInjectionModal').style.display = 'block';
 }
 
-function deleteCapitalInjection(id) {
-    console.log('Delete capital injection:', id);
-    // Implementation would be similar to other delete functions
+async function deleteCapitalInjection(id) {
+    const result = await Swal.fire({
+        title: 'هل أنت متأكد؟',
+        text: 'سيتم حذف سجل ضخ رأس المال نهائياً',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'نعم، احذف',
+        cancelButtonText: 'إلغاء'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+        const response = await authManager.makeAuthenticatedRequest(
+            `${API_BASE}/administration/${currentAdministrationId}/capital-injections/${id}`,
+            { method: 'DELETE' }
+        );
+
+        if (!response.ok) throw new Error('فشل في حذف ضخ رأس المال');
+
+        await Swal.fire({
+            icon: 'success',
+            title: 'تم الحذف',
+            text: 'تم حذف ضخ رأس المال بنجاح'
+        });
+
+        loadAdministrationDetails();
+    } catch (error) {
+        console.error('Error deleting capital injection:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'خطأ',
+            text: 'تعذر حذف ضخ رأس المال'
+        });
+    }
+}
+
+// Withdrawal CRUD
+async function handleWithdrawalSubmit(event) {
+    event.preventDefault();
+    console.log('Withdrawal form submitted');
+
+    const form = event.target;
+    const formData = new FormData(form);
+    const withdrawalData = Object.fromEntries(formData.entries());
+
+    console.log('Withdrawal data:', withdrawalData);
+    console.log('Current administration ID:', currentAdministrationId);
+
+    const withdrawalId = form.dataset.withdrawalId;
+    const isEdit = !!withdrawalId;
+
+    try {
+        const url = isEdit
+            ? `${API_BASE}/administration/${currentAdministrationId}/withdrawals/${withdrawalId}`
+            : `${API_BASE}/administration/${currentAdministrationId}/withdrawals`;
+        const method = isEdit ? 'PUT' : 'POST';
+
+        console.log('Sending request to:', url);
+        console.log('Method:', method);
+
+        const response = await authManager.makeAuthenticatedRequest(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(withdrawalData)
+        });
+
+        console.log('Response status:', response.status);
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Error response:', errorData);
+            throw new Error(errorData.message || 'فشل في حفظ المسحوبات');
+        }
+
+        await Swal.fire({
+            icon: 'success',
+            title: 'تم الحفظ',
+            text: isEdit ? 'تم تحديث المسحوبات بنجاح' : 'تم إضافة المسحوبات بنجاح'
+        });
+
+        closeWithdrawalModal();
+        loadAdministrationDetails();
+    } catch (error) {
+        console.error('Error saving withdrawal:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'خطأ',
+            text: error.message || 'تعذر حفظ المسحوبات'
+        });
+    }
 }
 
 function editWithdrawal(id) {
-    console.log('Edit withdrawal:', id);
+    const withdrawal = currentAdministration?.withdrawals?.find(w => w.id === id);
+    if (!withdrawal) return;
+
+    document.getElementById('withdrawalModalTitle').textContent = 'تعديل المسحوبات';
+    document.getElementById('withdrawalAmount').value = withdrawal.amount;
+    document.getElementById('withdrawalProject').value = withdrawal.project_id;
+    document.getElementById('withdrawalDate').value = withdrawal.date?.split('T')[0];
+    document.getElementById('withdrawalNotes').value = withdrawal.notes || '';
+    document.getElementById('withdrawalForm').dataset.withdrawalId = id;
+    document.getElementById('withdrawalModal').style.display = 'block';
 }
 
-function deleteWithdrawal(id) {
-    console.log('Delete withdrawal:', id);
+async function deleteWithdrawal(id) {
+    const result = await Swal.fire({
+        title: 'هل أنت متأكد؟',
+        text: 'سيتم حذف سجل المسحوبات نهائياً',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'نعم، احذف',
+        cancelButtonText: 'إلغاء'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+        const response = await authManager.makeAuthenticatedRequest(
+            `${API_BASE}/administration/${currentAdministrationId}/withdrawals/${id}`,
+            { method: 'DELETE' }
+        );
+
+        if (!response.ok) throw new Error('فشل في حذف المسحوبات');
+
+        await Swal.fire({
+            icon: 'success',
+            title: 'تم الحذف',
+            text: 'تم حذف المسحوبات بنجاح'
+        });
+
+        loadAdministrationDetails();
+    } catch (error) {
+        console.error('Error deleting withdrawal:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'خطأ',
+            text: 'تعذر حذف المسحوبات'
+        });
+    }
+}
+
+// Payment CRUD
+async function handlePaymentSubmit(event) {
+    event.preventDefault();
+
+    const form = event.target;
+    const formData = new FormData(form);
+    const paymentData = Object.fromEntries(formData.entries());
+
+    // Handle image upload if present
+    const imageFile = document.getElementById('paymentImage').files[0];
+    if (imageFile) {
+        const reader = new FileReader();
+        reader.onload = async function (e) {
+            paymentData.payment_image = e.target.result;
+            await submitPayment(paymentData, form.dataset.paymentId);
+        };
+        reader.readAsDataURL(imageFile);
+    } else {
+        await submitPayment(paymentData, form.dataset.paymentId);
+    }
+}
+
+async function submitPayment(paymentData, paymentId) {
+    const isEdit = !!paymentId;
+
+    try {
+        const url = isEdit
+            ? `${API_BASE}/administration/${currentAdministrationId}/payments/${paymentId}`
+            : `${API_BASE}/administration/${currentAdministrationId}/payments`;
+        const method = isEdit ? 'PUT' : 'POST';
+
+        const response = await authManager.makeAuthenticatedRequest(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(paymentData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'فشل في حفظ الدفعة');
+        }
+
+        await Swal.fire({
+            icon: 'success',
+            title: 'تم الحفظ',
+            text: isEdit ? 'تم تحديث الدفعة بنجاح' : 'تم إضافة الدفعة بنجاح'
+        });
+
+        closePaymentModal();
+        loadAdministrationDetails();
+    } catch (error) {
+        console.error('Error saving payment:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'خطأ',
+            text: error.message || 'تعذر حفظ الدفعة'
+        });
+    }
 }
 
 function editPayment(id) {
-    console.log('Edit payment:', id);
+    const payment = currentAdministration?.payments?.find(p => p.id === id);
+    if (!payment) return;
+
+    document.getElementById('paymentModalTitle').textContent = 'تعديل الدفعة';
+    document.getElementById('paymentAmount').value = payment.amount;
+    document.getElementById('paymentMethod').value = payment.method || '';
+    document.getElementById('paymentDetails').value = payment.details || '';
+    document.getElementById('paymentNote').value = payment.note || '';
+    document.getElementById('paymentDate').value = payment.paid_at?.split('T')[0];
+    document.getElementById('paymentForm').dataset.paymentId = id;
+    document.getElementById('paymentModal').style.display = 'block';
 }
 
-function deletePayment(id) {
-    console.log('Delete payment:', id);
+async function deletePayment(id) {
+    const result = await Swal.fire({
+        title: 'هل أنت متأكد؟',
+        text: 'سيتم حذف الدفعة نهائياً',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'نعم، احذف',
+        cancelButtonText: 'إلغاء'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+        const response = await authManager.makeAuthenticatedRequest(
+            `${API_BASE}/administration/${currentAdministrationId}/payments/${id}`,
+            { method: 'DELETE' }
+        );
+
+        if (!response.ok) throw new Error('فشل في حذف الدفعة');
+
+        await Swal.fire({
+            icon: 'success',
+            title: 'تم الحذف',
+            text: 'تم حذف الدفعة بنجاح'
+        });
+
+        loadAdministrationDetails();
+    } catch (error) {
+        console.error('Error deleting payment:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'خطأ',
+            text: 'تعذر حذف الدفعة'
+        });
+    }
 }
 
 function viewPaymentImage(imageData) {

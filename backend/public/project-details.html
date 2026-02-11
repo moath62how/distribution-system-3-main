@@ -104,7 +104,7 @@
 
 <body>
     <div id="sidebar-placeholder"></div>
-    
+
     <div class="main-content">
         <div class="page-header">
             <h1 class="page-title" id="projectName">تفاصيل المشروع المالية</h1>
@@ -125,7 +125,8 @@
         <div class="section">
             <div class="section-header">
                 <h3 class="section-title">معلومات العميل</h3>
-                <button class="btn btn-primary" onclick="window.location.href='clients-details.html?id=' + currentClientId">
+                <button class="btn btn-primary"
+                    onclick="window.location.href='clients-details.html?id=' + currentClientId">
                     <span>👤</span> إدارة العميل
                 </button>
             </div>
@@ -140,7 +141,8 @@
         <div class="section">
             <div class="section-header">
                 <h3 class="section-title">المصروفات المرتبطة بالمشروع</h3>
-                <button class="btn btn-primary" onclick="window.location.href='expenses.html?project_filter=' + currentClientId">
+                <button class="btn btn-primary"
+                    onclick="window.location.href='expenses.html?project_filter=' + currentClientId">
                     <span>➕</span> إدارة المصروفات
                 </button>
             </div>
@@ -149,10 +151,9 @@
                     <table class="data-table" id="expensesTable">
                         <thead>
                             <tr>
-                                <th>المبلغ</th>
-                                <th>الوصف</th>
-                                <th>الفئة</th>
                                 <th>التاريخ</th>
+                                <th>الوصف</th>
+                                <th>المبلغ</th>
                                 <th>ملاحظات</th>
                             </tr>
                         </thead>
@@ -248,8 +249,21 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="js/csp-fix.js"></script>
+
+    <!-- Load utilities first -->
+    <script src="js/utils/formatters.js"></script>
+    <script src="js/utils/validation.js"></script>
+    <script src="js/utils/dom.js"></script>
+
+    <!-- Load auth before API utilities -->
     <script src="js/auth.js"></script>
+
+    <!-- Load API and modal utilities -->
+    <script src="js/utils/api.js"></script>
+    <script src="js/utils/modals.js"></script>
+
+    <!-- Load page-specific scripts -->
+    <script src="js/csp-fix.js"></script>
     <script src="js/sidebar.js"></script>
     <script src="js/project-details.js"></script>
 </body>

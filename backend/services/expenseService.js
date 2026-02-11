@@ -2,6 +2,18 @@ const { Expense } = require('../models');
 
 const toNumber = (v) => Number(v || 0);
 
+// Arabic month names mapping
+const arabicMonths = [
+    'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+];
+
+// Convert number to Arabic numerals
+const toArabicNumerals = (num) => {
+    const arabicNumerals = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    return String(num).split('').map(digit => arabicNumerals[parseInt(digit)] || digit).join('');
+};
+
 class ExpenseService {
     static async getExpenseStats() {
         const expenses = await Expense.find({ is_deleted: { $ne: true } });
@@ -25,9 +37,13 @@ class ExpenseService {
             const total = monthExpenses.reduce((sum, expense) => sum + toNumber(expense.amount), 0);
             const count = monthExpenses.length;
 
+            // Format month name properly in Arabic
+            const monthName = arabicMonths[date.getMonth()];
+            const year = toArabicNumerals(date.getFullYear());
+
             monthlyTrend.push({
                 month: date.toISOString().slice(0, 7), // YYYY-MM format for easier comparison
-                monthName: date.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long' }),
+                monthName: `${monthName} ${year}`,
                 total: total,
                 count: count
             });
@@ -163,6 +179,7 @@ class ExpenseService {
             to_date,
             start_date,
             end_date,
+            project_id,
             page = 1,
             limit = 50,
             sort = 'expense_date',
@@ -170,6 +187,11 @@ class ExpenseService {
         } = query;
 
         let filter = { is_deleted: { $ne: true } };
+
+        // Filter by project_id if provided
+        if (project_id) {
+            filter.project_id = project_id;
+        }
 
         // Handle both date filter formats
         const startDate = start_date || from_date;

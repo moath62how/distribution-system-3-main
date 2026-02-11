@@ -1,13 +1,4 @@
-const API_BASE = (function () {
-    if (window.__API_BASE__) return window.__API_BASE__;
-    try {
-        const origin = window.location.origin;
-        if (!origin || origin === 'null') return 'http://localhost:5000/api';
-        return origin.replace(/\/$/, '') + '/api';
-    } catch (e) {
-        return 'http://localhost:5000/api';
-    }
-})();
+// Utilities are loaded via separate script tags - no need to redefine common functions
 
 // State
 let projectsData = [];
@@ -15,31 +6,21 @@ let currentPage = 1;
 let currentSearch = '';
 let totalPages = 1;
 
-// Helpers
-function formatCurrency(amount) {
-    return Number(amount || 0).toLocaleString('ar-EG', {
-        style: 'currency',
-        currency: 'EGP',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    });
-}
-
 // Create project card (based on client data)
 function createProjectCard(client) {
     const card = document.createElement('div');
-    card.className = 'project-card';
+    card.className = 'client-card';
 
     // Header with client name and actions
     const header = document.createElement('div');
-    header.className = 'project-header';
+    header.className = 'client-header';
 
     const name = document.createElement('h3');
-    name.className = 'project-name';
+    name.className = 'client-name';
     name.textContent = `مشروع: ${client.name}`;
 
     const actions = document.createElement('div');
-    actions.className = 'project-actions';
+    actions.className = 'client-actions';
 
     const detailsBtn = document.createElement('button');
     detailsBtn.className = 'btn btn-sm btn-primary';
@@ -54,7 +35,7 @@ function createProjectCard(client) {
     // Client info section
     if (client.phone) {
         const contactSection = document.createElement('div');
-        contactSection.className = 'project-contact';
+        contactSection.className = 'client-contact';
 
         const phoneItem = document.createElement('div');
         phoneItem.className = 'contact-item';
@@ -66,7 +47,7 @@ function createProjectCard(client) {
 
     // Financial summary section
     const financialSection = document.createElement('div');
-    financialSection.className = 'project-financial';
+    financialSection.className = 'client-financial';
 
     // Client balance (from deliveries and payments)
     const balanceItem = document.createElement('div');
@@ -106,7 +87,7 @@ function createProjectCard(client) {
 
     // Project financial stats
     const stats = document.createElement('div');
-    stats.className = 'project-stats';
+    stats.className = 'client-stats';
 
     const statsItems = [
         { label: 'إجمالي التسليمات', value: formatCurrency(client.totalDeliveries || 0) },
@@ -208,16 +189,10 @@ async function loadProjects(page = 1) {
         params.set('page', page);
         params.set('limit', 25);
         if (currentSearch) {
-            params.set('q', currentSearch);
+            params.set('search', currentSearch);
         }
 
-        // Load clients as projects (1:1 mapping)
-        const response = await authManager.makeAuthenticatedRequest(`${API_BASE}/clients?${params}`);
-        if (!response.ok) {
-            throw new Error('فشل في تحميل بيانات المشاريع');
-        }
-
-        const result = await response.json();
+        const result = await apiGet(`/clients?${params}`);
         projectsData = result.clients || result.data || [];
 
         renderProjects(projectsData);
@@ -245,18 +220,58 @@ function setupEventHandlers() {
     // Search functionality
     const searchInput = document.getElementById('projectSearch');
     const searchBtn = document.getElementById('searchBtn');
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    let searchTimeout;
 
-    searchBtn.addEventListener('click', () => {
-        currentSearch = searchInput.value.trim();
-        loadProjects(1);
-    });
-
-    searchInput.addEventListener('keyup', (e) => {
-        if (e.key === 'Enter') {
+    function performSearch() {
+        if (searchInput) {
             currentSearch = searchInput.value.trim();
-            loadProjects(1);
+            currentPage = 1; // Reset to first page when searching
+            loadProjects(currentPage);
         }
-    });
+    }
+
+    // Search button click handler
+    if (searchBtn) {
+        searchBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            performSearch();
+        });
+    }
+
+    // Clear search button handler
+    if (clearSearchBtn) {
+        clearSearchBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (searchInput) {
+                searchInput.value = '';
+            }
+            currentSearch = '';
+            currentPage = 1;
+            loadProjects(currentPage);
+        });
+    }
+
+    // Search input handlers
+    if (searchInput) {
+        searchInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                clearTimeout(searchTimeout);
+                performSearch();
+            } else {
+                // Real-time search with debounce
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    const newSearch = searchInput.value.trim();
+                    if (newSearch !== currentSearch) {
+                        performSearch();
+                    }
+                }, 500); // Wait 500ms after user stops typing
+            }
+        });
+    }
 }
 
 // Initialize

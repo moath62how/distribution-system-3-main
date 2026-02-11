@@ -69,9 +69,16 @@ function createEmployeeCard(employee) {
     // Project assignment info
     const projectsItem = document.createElement('div');
     projectsItem.className = 'info-item';
+
+    console.log('Employee projects data:', {
+        all_projects: employee.all_projects,
+        assigned_projects: employee.assigned_projects,
+        assigned_projects_length: employee.assigned_projects?.length
+    });
+
     if (employee.all_projects) {
         projectsItem.innerHTML = `<span class="info-label">المشاريع:</span> <span class="info-value" style="color: var(--blue-600); font-weight: 500;">جميع المشاريع</span>`;
-    } else if (employee.assigned_projects && employee.assigned_projects.length > 0) {
+    } else if (employee.assigned_projects && Array.isArray(employee.assigned_projects) && employee.assigned_projects.length > 0) {
         projectsItem.innerHTML = `<span class="info-label">المشاريع:</span> <span class="info-value">${employee.assigned_projects.length} مشروع مخصص</span>`;
     } else {
         projectsItem.innerHTML = `<span class="info-label">المشاريع:</span> <span class="info-value text-muted">غير مخصص لمشاريع</span>`;

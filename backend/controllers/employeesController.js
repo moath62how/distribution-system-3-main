@@ -30,7 +30,7 @@ class EmployeesController {
     // Create new employee
     async createEmployee(req, res, next) {
         try {
-            const { name, job_title, phone_number, basic_salary, start_working_date, end_working_date, status, notes } = req.body;
+            const { name, job_title, phone_number, basic_salary, start_working_date, end_working_date, status, notes, all_projects, assigned_projects } = req.body;
 
             if (!name || name.trim() === '') {
                 return res.status(400).json({ message: 'اسم الموظف مطلوب' });
@@ -48,7 +48,9 @@ class EmployeesController {
                 start_working_date: start_working_date ? new Date(start_working_date) : new Date(),
                 end_working_date: end_working_date ? new Date(end_working_date) : null,
                 status: status || 'Active',
-                notes: notes?.trim()
+                notes: notes?.trim(),
+                all_projects: all_projects || false,
+                assigned_projects: assigned_projects || []
             });
 
             res.status(201).json(employee);
@@ -63,7 +65,7 @@ class EmployeesController {
     // Update employee
     async updateEmployee(req, res, next) {
         try {
-            const { name, job_title, phone_number, basic_salary, start_working_date, end_working_date, status, notes } = req.body;
+            const { name, job_title, phone_number, basic_salary, start_working_date, end_working_date, status, notes, all_projects, assigned_projects } = req.body;
 
             if (!name || name.trim() === '') {
                 return res.status(400).json({ message: 'اسم الموظف مطلوب' });
@@ -81,7 +83,9 @@ class EmployeesController {
                 start_working_date: start_working_date ? new Date(start_working_date) : undefined,
                 end_working_date: end_working_date ? new Date(end_working_date) : null,
                 status: status || 'Active',
-                notes: notes?.trim()
+                notes: notes?.trim(),
+                all_projects: all_projects !== undefined ? all_projects : undefined,
+                assigned_projects: assigned_projects !== undefined ? assigned_projects : undefined
             });
 
             if (!employee) {
@@ -383,22 +387,22 @@ class EmployeesController {
                 return res.status(400).json({ message: 'سجل الحضور لهذه الفترة موجود بالفعل' });
             }
             console.error('Error adding attendance record:', err);
-            
+
             // Handle validation errors
             if (err.message && err.message.includes('validation')) {
                 return res.status(400).json({ message: err.message });
             }
-            
+
             // Handle custom validation errors from payroll service
             if (err.message && (
-                err.message.includes('days') || 
-                err.message.includes('period') || 
+                err.message.includes('days') ||
+                err.message.includes('period') ||
                 err.message.includes('attendance') ||
                 err.message.includes('absence')
             )) {
                 return res.status(400).json({ message: err.message });
             }
-            
+
             next(err);
         }
     }
@@ -473,22 +477,22 @@ class EmployeesController {
                 return res.status(400).json({ message: 'سجل الحضور لهذه الفترة موجود بالفعل' });
             }
             console.error('Error updating attendance record:', err);
-            
+
             // Handle validation errors
             if (err.message && err.message.includes('validation')) {
                 return res.status(400).json({ message: err.message });
             }
-            
+
             // Handle custom validation errors from payroll service
             if (err.message && (
-                err.message.includes('days') || 
-                err.message.includes('period') || 
+                err.message.includes('days') ||
+                err.message.includes('period') ||
                 err.message.includes('attendance') ||
                 err.message.includes('absence')
             )) {
                 return res.status(400).json({ message: err.message });
             }
-            
+
             next(err);
         }
     }

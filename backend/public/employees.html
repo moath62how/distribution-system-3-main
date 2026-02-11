@@ -249,6 +249,20 @@
     <script src="js/auth.js"></script>
     <script src="js/csp-fix.js"></script>
     <script>
+        // Wait for utilities to be loaded
+        function waitForUtilities() {
+            return new Promise((resolve) => {
+                const checkUtilities = () => {
+                    if (typeof apiGet !== 'undefined') {
+                        resolve();
+                    } else {
+                        setTimeout(checkUtilities, 50);
+                    }
+                };
+                checkUtilities();
+            });
+        }
+
         // Load projects for assignment
         let availableProjects = [];
 
@@ -271,6 +285,9 @@
             if (!authManager.checkAuth()) {
                 return;
             }
+
+            // Wait for utilities to be loaded
+            await waitForUtilities();
 
             await loadProjects();
 

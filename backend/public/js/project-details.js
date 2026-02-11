@@ -1,34 +1,11 @@
-const API_BASE = (function () {
-    if (window.__API_BASE__) return window.__API_BASE__;
-    try {
-        const origin = window.location.origin;
-        if (!origin || origin === 'null') return 'http://localhost:5000/api';
-        return origin.replace(/\/$/, '') + '/api';
-    } catch (e) {
-        return 'http://localhost:5000/api';
-    }
-})();
+// Utilities are loaded via separate script tags - no need to redefine common functions
 
 // Global variables
 let currentClientId = null;
 let currentClient = null;
+let currentProjectId = null; // Add project ID tracking
 
 // --- Helpers ---
-
-function formatCurrency(amount) {
-    return Number(amount || 0).toLocaleString('ar-EG', {
-        style: 'currency',
-        currency: 'EGP',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    });
-}
-
-function formatDate(dateString) {
-    if (!dateString) return '—';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ar-EG');
-}
 
 function formatDateTime(dateString) {
     if (!dateString) return '—';
@@ -41,7 +18,7 @@ function formatDateTime(dateString) {
 async function loadProjectDetails() {
     const urlParams = new URLSearchParams(window.location.search);
     currentClientId = urlParams.get('client_id');
-    
+
     if (!currentClientId) {
         Swal.fire({
             icon: 'error',
@@ -52,15 +29,20 @@ async function loadProjectDetails() {
         });
         return;
     }
-    
+
     try {
         // Load client details
-        const clientResponse = await authManager.makeAuthenticatedRequest(`${API_BASE}/clients/${currentClientId}`);
-        if (!clientResponse.ok) throw new Error('فشل في تحميل بيانات العميل');
-        
-        const clientData = await clientResponse.json();
+        const clientData = await apiGet(`/clients/${currentClientId}`);
         currentClient = clientData.client;
-        
+
+        // Load the associated project to get project_id
+        const projectsData = await apiGet(`/projects?client_id=${currentClientId}`);
+        const projects = projectsData.projects || [];
+
+        if (projects.length > 0) {
+            currentProjectId = projects[0].id; // Get the first matching project
+        }
+
         // Load project financial data
         await Promise.all([
             displayClientInfo(currentClient),
@@ -70,7 +52,7 @@ async function loadProjectDetails() {
             loadWithdrawals(),
             loadAssignedEmployees()
         ]);
-        
+
     } catch (error) {
         console.error('Error loading project details:', error);
         Swal.fire({
@@ -83,7 +65,7 @@ async function loadProjectDetails() {
 
 function displayClientInfo(client) {
     document.getElementById('projectName').textContent = `المشروع المالي: ${client.name}`;
-    
+
     const infoContainer = document.getElementById('clientInfo');
     infoContainer.innerHTML = `
         <div class="info-item">
@@ -108,13 +90,48 @@ function displayClientInfo(client) {
 async function displayFinancialSummary() {
     try {
         // Get client financial summary
-        const response = await authManager.makeAuthenticatedRequest(`${API_BASE}/clients/${currentClientId}`);
-        const data = await response.json();
+        const data = await apiGet(`/clients/${currentClientId}`);
         const client = data.client;
-        
+
+        // Get project-specific financial data
+        let totalExpenses = 0;
+        let totalCapitalInjections = 0;
+        let totalWithdrawals = 0;
+
+        // Load expenses for this project
+        try {
+            const expensesData = await apiGet(`/expenses?project_id=${currentClientId}`);
+            const expenses = expensesData.expenses || [];
+            totalExpenses = expenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
+        } catch (error) {
+            console.error('Error loading expenses for summary:', error);
+        }
+
+        // Load capital injections for this project
+        if (currentProjectId) {
+            try {
+                const injectionsData = await apiGet('/administration/capital-injections');
+                const allInjections = injectionsData.capital_injections || injectionsData.capitalInjections || [];
+                const projectInjections = allInjections.filter(inj => inj.project_id === currentProjectId);
+                totalCapitalInjections = projectInjections.reduce((sum, inj) => sum + (inj.amount || 0), 0);
+            } catch (error) {
+                console.error('Error loading capital injections for summary:', error);
+            }
+
+            // Load withdrawals for this project
+            try {
+                const withdrawalsData = await apiGet('/administration/withdrawals');
+                const allWithdrawals = withdrawalsData.withdrawals || [];
+                const projectWithdrawals = allWithdrawals.filter(w => w.project_id === currentProjectId);
+                totalWithdrawals = projectWithdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
+            } catch (error) {
+                console.error('Error loading withdrawals for summary:', error);
+            }
+        }
+
         const summaryContainer = document.getElementById('financialSummary');
         const balance = client.balance || 0;
-        
+
         summaryContainer.innerHTML = `
             <div class="summary-item">
                 <div class="summary-value ${balance >= 0 ? 'text-danger' : 'text-success'}">
@@ -131,15 +148,15 @@ async function displayFinancialSummary() {
                 <div class="summary-label">إجمالي المدفوعات</div>
             </div>
             <div class="summary-item">
-                <div class="summary-value">${formatCurrency(0)}</div>
+                <div class="summary-value">${formatCurrency(totalExpenses)}</div>
                 <div class="summary-label">المصروفات المرتبطة</div>
             </div>
             <div class="summary-item">
-                <div class="summary-value">${formatCurrency(0)}</div>
+                <div class="summary-value">${formatCurrency(totalCapitalInjections)}</div>
                 <div class="summary-label">الحقن الرأسمالية</div>
             </div>
             <div class="summary-item">
-                <div class="summary-value">${formatCurrency(0)}</div>
+                <div class="summary-value">${formatCurrency(totalWithdrawals)}</div>
                 <div class="summary-label">السحوبات</div>
             </div>
         `;
@@ -151,10 +168,9 @@ async function displayFinancialSummary() {
 async function loadProjectExpenses() {
     try {
         // Load expenses related to this project (client)
-        const response = await authManager.makeAuthenticatedRequest(`${API_BASE}/expenses?project_id=${currentClientId}`);
-        const data = await response.json();
+        const data = await apiGet(`/expenses?project_id=${currentClientId}`);
         const expenses = data.expenses || [];
-        
+
         displayExpenses(expenses);
     } catch (error) {
         console.error('Error loading project expenses:', error);
@@ -164,22 +180,21 @@ async function loadProjectExpenses() {
 
 function displayExpenses(expenses) {
     const tbody = document.getElementById('expensesTableBody');
-    
+
     if (!expenses || expenses.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="5" class="empty-state">لا توجد مصروفات مرتبطة بهذا المشروع</td>
+                <td colspan="4" class="empty-state">لا توجد مصروفات مرتبطة بهذا المشروع</td>
             </tr>
         `;
         return;
     }
-    
+
     tbody.innerHTML = expenses.map(expense => `
         <tr>
-            <td>${formatCurrency(expense.amount)}</td>
+            <td>${formatDateShort(expense.expense_date || expense.date)}</td>
             <td>${expense.description || '—'}</td>
-            <td>${expense.category || '—'}</td>
-            <td>${formatDate(expense.date)}</td>
+            <td>${formatCurrency(expense.amount)}</td>
             <td>${expense.notes || '—'}</td>
         </tr>
     `).join('');
@@ -188,10 +203,14 @@ function displayExpenses(expenses) {
 async function loadCapitalInjections() {
     try {
         // Load capital injections (from administration)
-        const response = await authManager.makeAuthenticatedRequest(`${API_BASE}/administration/capital-injections`);
-        const data = await response.json();
-        const injections = data.capitalInjections || [];
-        
+        const data = await apiGet('/administration/capital-injections');
+        const allInjections = data.capital_injections || data.capitalInjections || [];
+
+        // Filter by current project (not client)
+        const injections = allInjections.filter(injection =>
+            injection.project_id === currentProjectId
+        );
+
         displayCapitalInjections(injections);
     } catch (error) {
         console.error('Error loading capital injections:', error);
@@ -201,7 +220,7 @@ async function loadCapitalInjections() {
 
 function displayCapitalInjections(injections) {
     const tbody = document.getElementById('capitalInjectionsTableBody');
-    
+
     if (!injections || injections.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -210,11 +229,11 @@ function displayCapitalInjections(injections) {
         `;
         return;
     }
-    
+
     tbody.innerHTML = injections.map(injection => `
         <tr>
             <td>${formatCurrency(injection.amount)}</td>
-            <td>${injection.source || '—'}</td>
+            <td>${injection.administration_name || '—'}</td>
             <td>${formatDate(injection.date)}</td>
             <td>${injection.notes || '—'}</td>
         </tr>
@@ -224,10 +243,14 @@ function displayCapitalInjections(injections) {
 async function loadWithdrawals() {
     try {
         // Load withdrawals (from administration)
-        const response = await authManager.makeAuthenticatedRequest(`${API_BASE}/administration/withdrawals`);
-        const data = await response.json();
-        const withdrawals = data.withdrawals || [];
-        
+        const data = await apiGet('/administration/withdrawals');
+        const allWithdrawals = data.withdrawals || [];
+
+        // Filter by current project (not client)
+        const withdrawals = allWithdrawals.filter(withdrawal =>
+            withdrawal.project_id === currentProjectId
+        );
+
         displayWithdrawals(withdrawals);
     } catch (error) {
         console.error('Error loading withdrawals:', error);
@@ -237,7 +260,7 @@ async function loadWithdrawals() {
 
 function displayWithdrawals(withdrawals) {
     const tbody = document.getElementById('withdrawalsTableBody');
-    
+
     if (!withdrawals || withdrawals.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -246,11 +269,11 @@ function displayWithdrawals(withdrawals) {
         `;
         return;
     }
-    
+
     tbody.innerHTML = withdrawals.map(withdrawal => `
         <tr>
             <td>${formatCurrency(withdrawal.amount)}</td>
-            <td>${withdrawal.purpose || '—'}</td>
+            <td>${withdrawal.administration_name || '—'}</td>
             <td>${formatDate(withdrawal.date)}</td>
             <td>${withdrawal.notes || '—'}</td>
         </tr>
@@ -260,16 +283,15 @@ function displayWithdrawals(withdrawals) {
 async function loadAssignedEmployees() {
     try {
         // Load employees assigned to this project (client)
-        const response = await authManager.makeAuthenticatedRequest(`${API_BASE}/employees`);
-        const data = await response.json();
+        const data = await apiGet('/employees');
         const allEmployees = data.employees || [];
-        
+
         // Filter employees assigned to this project
         const assignedEmployees = allEmployees.filter(employee => {
-            return employee.all_projects || 
-                   (employee.assigned_projects && employee.assigned_projects.includes(currentClientId));
+            return employee.all_projects ||
+                (employee.assigned_projects && employee.assigned_projects.includes(currentClientId));
         });
-        
+
         displayAssignedEmployees(assignedEmployees);
     } catch (error) {
         console.error('Error loading assigned employees:', error);
@@ -279,7 +301,7 @@ async function loadAssignedEmployees() {
 
 function displayAssignedEmployees(employees) {
     const tbody = document.getElementById('employeesTableBody');
-    
+
     if (!employees || employees.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -288,7 +310,7 @@ function displayAssignedEmployees(employees) {
         `;
         return;
     }
-    
+
     tbody.innerHTML = employees.map(employee => `
         <tr>
             <td>
@@ -310,10 +332,10 @@ function displayAssignedEmployees(employees) {
 
 // --- Event Listeners ---
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Load project details on page load
     loadProjectDetails();
-    
+
     // Make currentClientId available globally for onclick handlers
     window.currentClientId = currentClientId;
 });

@@ -148,6 +148,9 @@ function renderExpenses(expenses) {
         return;
     }
 
+    console.log('Rendering expenses:', expenses);
+    console.log('Available projects:', projectsData);
+
     const table = document.createElement('table');
     table.className = 'table';
 
@@ -177,8 +180,19 @@ function renderExpenses(expenses) {
         // Project
         const projectCell = document.createElement('td');
         if (expense.project_id) {
-            const project = projectsData.find(p => (p.id || p._id) === expense.project_id);
-            projectCell.textContent = project ? (project.name || project.client_name) : 'مشروع محذوف';
+            // Convert both IDs to strings for comparison
+            const expenseProjectId = String(expense.project_id);
+            const project = projectsData.find(p => {
+                const projectId = String(p.id || p._id);
+                return projectId === expenseProjectId;
+            });
+
+            if (project) {
+                projectCell.textContent = project.name || project.client_name || 'مشروع بدون اسم';
+            } else {
+                projectCell.textContent = 'مشروع محذوف';
+                console.warn('Project not found for expense:', expense.id, 'project_id:', expense.project_id);
+            }
         } else {
             projectCell.textContent = 'غير محدد';
             projectCell.className = 'text-muted';
@@ -443,9 +457,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupEventHandlers();
         console.log('Event handlers set up');
 
-        // Load data in parallel
+        // Load projects first, then load expenses and stats in parallel
+        await loadProjects();
+        console.log('Projects loaded, now loading expenses and stats');
+
         await Promise.all([
-            loadProjects(),
             loadExpenses(),
             loadExpenseStats()
         ]);
