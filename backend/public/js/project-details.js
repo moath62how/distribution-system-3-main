@@ -109,7 +109,7 @@ async function displayDetailedFinancialCards() {
 
         // If deliveries have missing material_price_at_time, we need to look it up
         const deliveriesWithMissingPrices = deliveries.filter(d => !d.material_price_at_time || d.material_price_at_time === 0);
-        
+
         if (deliveriesWithMissingPrices.length > 0) {
             console.warn('⚠️ Found deliveries with missing material_price_at_time:', deliveriesWithMissingPrices.length);
             // We'll calculate costs without these for now, but log a warning
@@ -119,7 +119,7 @@ async function displayDetailedFinancialCards() {
             const netQuantity = (delivery.net_quantity || delivery.quantity || 0);
             const quantity = delivery.quantity || 0;
             const materialPrice = delivery.material_price_at_time || 0;
-            
+
             materialCosts += materialPrice * netQuantity;
             contractorCosts += (delivery.contractor_charge_per_meter || 0) * netQuantity;
             totalRevenue += (delivery.price_per_meter || 0) * quantity;
@@ -151,15 +151,15 @@ async function displayDetailedFinancialCards() {
             // Get withdrawals for this project (Administrative Expenses)
             const withdrawalsData = await apiGet('/administration/withdrawals');
             const allWithdrawals = withdrawalsData.withdrawals || [];
-            
+
             // Filter withdrawals by Project ID
             const projectWithdrawals = allWithdrawals.filter(w => {
                 const wProjectId = w.project_id?._id || w.project_id;
                 return projectId && String(wProjectId) === String(projectId);
             });
-            
+
             administrativeExpenses = projectWithdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
-            
+
             console.log('💸 Administrative Expenses (Withdrawals) Debug:');
             console.log('Total withdrawals in system:', allWithdrawals.length);
             console.log('Filtered withdrawals for this project:', projectWithdrawals.length);
@@ -172,30 +172,30 @@ async function displayDetailedFinancialCards() {
             // Get employee salaries for this project
             const employeesData = await apiGet('/employees');
             const allEmployees = employeesData.employees || [];
-            
+
             console.log('💰 Salaries Debug:');
             console.log('Total employees in system:', allEmployees.length);
-            
+
             // For each employee, check if they're assigned to this project
             for (const employee of allEmployees) {
                 try {
                     const empDetailsData = await apiGet(`/employees/${employee.id}`);
                     const empDetails = empDetailsData.employee || {};
-                    
+
                     // Check if employee works on all projects or is assigned to this specific project
                     const worksOnAllProjects = empDetails.all_projects === true;
                     const assignedProjects = empDetails.assigned_projects || [];
-                    
+
                     const isAssignedToProject = worksOnAllProjects || assignedProjects.some(projectId => {
-                        return String(projectId) === String(currentClientId) || 
-                               (projectId && String(projectId) === String(projectId));
+                        return String(projectId) === String(currentClientId) ||
+                            (projectId && String(projectId) === String(projectId));
                     });
-                    
+
                     if (isAssignedToProject) {
                         // Use earned salary, not just payments
                         const totals = empDetailsData.totals || {};
                         const earnedSalary = totals.total_earned_salary || 0;
-                        
+
                         // If employee works on multiple projects, divide salary proportionally
                         if (worksOnAllProjects) {
                             // Get total number of active projects to divide salary
@@ -211,14 +211,14 @@ async function displayDetailedFinancialCards() {
                             // Employee works only on this project
                             salaries += earnedSalary;
                         }
-                        
+
                         console.log(`Employee ${empDetails.name}: earned=${earnedSalary}, projects=${assignedProjects.length || 'all'}`);
                     }
                 } catch (error) {
                     console.error(`Error loading employee ${employee.id} details:`, error);
                 }
             }
-            
+
             console.log('Total salaries for this project:', salaries);
         } catch (error) {
             console.error('Error loading employee salaries:', error);
@@ -228,23 +228,23 @@ async function displayDetailedFinancialCards() {
             // Get regular expenses (Operational Expenses only)
             const expensesData = await apiGet(`/expenses`);
             const allExpenses = expensesData.expenses || [];
-            
+
             // Filter by either Client ID or Project ID
             const expenses = allExpenses.filter(expense => {
                 const expProjectId = expense.project_id?._id || expense.project_id;
-                return String(expProjectId) === String(currentClientId) || 
-                       (projectId && String(expProjectId) === String(projectId));
+                return String(expProjectId) === String(currentClientId) ||
+                    (projectId && String(expProjectId) === String(projectId));
             });
-            
+
             console.log('🔧 Operational Expenses Debug:');
             console.log('Total expenses in system:', allExpenses.length);
             console.log('Filtered expenses found:', expenses.length);
-            
+
             expenses.forEach(expense => {
                 const amount = expense.amount || 0;
                 operationalExpenses += amount;
             });
-            
+
             console.log('Total operational expenses:', operationalExpenses);
         } catch (error) {
             console.error('Error loading expenses:', error);
@@ -258,7 +258,7 @@ async function displayDetailedFinancialCards() {
             // Use the projectId we found earlier
             const injectionsData = await apiGet('/administration/capital-injections');
             const allInjections = injectionsData.capital_injections || injectionsData.capitalInjections || [];
-            
+
             let projectInjections = [];
             if (projectId) {
                 // Filter by the Project ID we found
@@ -267,7 +267,7 @@ async function displayDetailedFinancialCards() {
                     return String(injProjectId) === String(projectId);
                 });
             }
-            
+
             totalCapitalInjections = projectInjections.reduce((sum, inj) => sum + (inj.amount || 0), 0);
             console.log('💰 Capital Injections Debug:');
             console.log('All injections:', allInjections.length);
@@ -316,11 +316,11 @@ async function displayDetailedFinancialCards() {
         const totalCosts = materialCosts + contractorCosts;
         const operatingResult = totalRevenue - totalCosts;
         const netProfit = operatingResult - totalExpenses;
-        
+
         // Net Opening Balance: positive entity balances mean we owe them (subtract from client balance)
         // If client balance is positive (they owe us) and entity balances are positive (we owe them), net is client - entities
         const netOpeningBalance = clientOpeningBalance - totalCrusherOpeningBalances - totalContractorOpeningBalances - totalSupplierOpeningBalances;
-        
+
         console.log('═══════════════════════════════════════════════════════');
         console.log('📊 COMPLETE FINANCIAL CALCULATIONS DEBUG');
         console.log('═══════════════════════════════════════════════════════');
@@ -356,24 +356,24 @@ async function displayDetailedFinancialCards() {
         console.log('');
         console.log('📈 CALCULATED RESULTS:');
         console.log('  Net Profit (Operating Result - Expenses):', netProfit);
-        
+
         // Final Financial Position = Net Operating Profit + Net Opening Balance + Total Adjustments
         const finalFinancialPosition = netProfit + netOpeningBalance + totalAdjustments;
         console.log('  Final Financial Position (Net Profit + Net Opening Balance + Adjustments):', finalFinancialPosition);
-        
-        // Net Capital Position = Paid-in Capital - (clientOpeningBalance + adjustments + Materials + contractor costs + totalExpenses)
-        const netCapitalPosition = totalCapitalInjections - (clientOpeningBalance + totalAdjustments + materialCosts + contractorCosts + totalExpenses);
-        console.log('  Net Capital Position (Capital - Client Opening - Adjustments - Materials - Contractors - Expenses):', netCapitalPosition);
-        
+
+        // Net Capital Position = Paid-in Capital - (clientOpeningBalance + Materials + contractor costs + totalExpenses)
+        const netCapitalPosition = totalCapitalInjections - (clientOpeningBalance + materialCosts + contractorCosts + totalExpenses);
+        console.log('  Net Capital Position (Capital - Client Opening - Materials - Contractors - Expenses):', netCapitalPosition);
+
         // Net Profit/Loss Upon Settlement = Final Financial Position - Total Payments
         const netProfitLossUponSettlement = finalFinancialPosition - totalPayments;
         console.log('  Net Profit/Loss Upon Settlement (Final Position - Payments):', netProfitLossUponSettlement);
-        
+
         const due = netProfitLossUponSettlement;
         console.log('  Due (same as Net Profit/Loss Upon Settlement):', due);
         console.log('');
         console.log('═══════════════════════════════════════════════════════');
-        
+
         // Determine capital status
         let capitalStatus = '';
         if (netCapitalPosition > 0) {
@@ -395,10 +395,6 @@ async function displayDetailedFinancialCards() {
             <div class="card-line expense">
                 <span class="card-line-value negative">${formatCurrency(Math.abs(clientOpeningBalance))}</span>
                 <span class="card-line-label">الرصيد الافتتاحي للعميل</span>
-            </div>
-            <div class="card-line expense">
-                <span class="card-line-value negative">${formatCurrency(Math.abs(totalAdjustments))}</span>
-                <span class="card-line-label">التسويات</span>
             </div>
             <div class="card-line expense">
                 <span class="card-line-value negative">${formatCurrency(materialCosts)}</span>
@@ -519,7 +515,7 @@ async function displayDetailedFinancialCards() {
                 <span class="card-line-value ${totalAdjustments >= 0 ? 'positive' : 'negative'}">${formatCurrency(Math.abs(totalAdjustments))}</span>
                 <span class="card-line-label">إجمالي التسويات</span>
             </div>
-            <div class="card-line highlight">
+            <div class="card-line ${finalFinancialPosition >= 0 ? 'revenue' : 'expense'} highlight">
                 <span class="card-line-value ${finalFinancialPosition >= 0 ? 'positive' : 'negative'}">${formatCurrency(Math.abs(finalFinancialPosition))}</span>
                 <span class="card-line-label">الموقف المالي النهائي للمشروع</span>
             </div>
