@@ -24,6 +24,9 @@ const {
   Withdrawal,
   AdministrationPayment,
   Supplier,
+  SupplierPayment,
+  SupplierOpeningBalance,
+  Adjustment,
   User,
   AuditLog,
   UserSession
@@ -163,6 +166,7 @@ async function bootstrap() {
   // API metrics endpoint - Updated for MongoDB (Manager + Accountant only)
   app.get('/api/metrics', requireRole(['manager', 'accountant']), async (req, res, next) => {
     try {
+      const totalProjects = await Project.countDocuments({ is_deleted: { $ne: true } });
       const clientsCount = await Client.countDocuments({ is_deleted: { $ne: true } });
       const crushersCount = await Crusher.countDocuments({ is_deleted: { $ne: true } });
       const contractorsCount = await Contractor.countDocuments({ is_deleted: { $ne: true } });
@@ -259,8 +263,68 @@ async function bootstrap() {
 
       const totalCashPayments = Number(clientPayments || 0) + Number(contractorPayments || 0) + Number(crusherPayments || 0) + Number(totalEmployeePayments || 0) + Number(totalAdministrationPayments || 0);
 
+      // 11. Calculate outstanding balances (excluding soft-deleted)
+      const clients = await Client.find({ is_deleted: { $ne: true } });
+      const suppliers = await Supplier.find({ is_deleted: { $ne: true } });
+      const crushers = await Crusher.find({ is_deleted: { $ne: true } });
+      const contractors = await Contractor.find({ is_deleted: { $ne: true } });
+      const employees = await Employee.find({ is_deleted: { $ne: true } });
+
+      // Client balances (positive = they owe us, negative = we owe them)
+      const totalClientBalancesPositive = clients
+        .filter(c => (c.balance || 0) > 0)
+        .reduce((sum, c) => sum + (c.balance || 0), 0);
+
+      // Supplier balances (positive = we owe them)
+      const totalSupplierBalances = suppliers
+        .reduce((sum, s) => sum + Math.abs(s.balance || 0), 0);
+
+      // Crusher balances (positive net = we owe them)
+      const totalCrusherBalances = crushers
+        .filter(c => (c.net || 0) > 0)
+        .reduce((sum, c) => sum + (c.net || 0), 0);
+
+      // Contractor balances (positive = we owe them)
+      const totalContractorBalances = contractors
+        .filter(c => (c.balance || 0) > 0)
+        .reduce((sum, c) => sum + (c.balance || 0), 0);
+
+      // Employee balances (negative = we owe them)
+      const totalEmployeeBalancesNegative = employees
+        .filter(e => (e.balance || 0) < 0)
+        .reduce((sum, e) => sum + (e.balance || 0), 0);
+
+      // 12. Calculate supplier costs and payments
+      const supplierPaymentsAgg = await SupplierPayment.aggregate([
+        { $match: { is_deleted: { $ne: true } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]);
+      const totalSupplierPayments = supplierPaymentsAgg.length > 0 ? supplierPaymentsAgg[0].total : 0;
+
+      // Calculate supplier costs from supplier opening balances
+      const supplierOpeningBalancesAgg = await SupplierOpeningBalance.aggregate([
+        { $match: { is_deleted: { $ne: true } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]);
+      const totalSupplierCosts = supplierOpeningBalancesAgg.length > 0 ? supplierOpeningBalancesAgg[0].total : 0;
+
+      // 13. Calculate adjustments and losses
+      const adjustmentsAgg = await Adjustment.aggregate([
+        { $match: { is_deleted: { $ne: true } } },
+        {
+          $group: {
+            _id: null,
+            positive: { $sum: { $cond: [{ $gt: ['$amount', 0] }, '$amount', 0] } },
+            negative: { $sum: { $cond: [{ $lt: ['$amount', 0] }, { $abs: '$amount' }, 0] } }
+          }
+        }
+      ]);
+      const positiveClientAdjustments = adjustmentsAgg.length > 0 ? adjustmentsAgg[0].positive : 0;
+      const totalLosses = adjustmentsAgg.length > 0 ? adjustmentsAgg[0].negative : 0;
+
       res.json({
         // Counts
+        totalProjects: Number(totalProjects || 0),
         totalClients: Number(clientsCount || 0),
         totalCrushers: Number(crushersCount || 0),
         totalContractors: Number(contractorsCount || 0),
@@ -274,6 +338,7 @@ async function bootstrap() {
         totalCrusherCosts: Number(totalCrusherCosts || 0),
         totalContractorCosts: Number(totalContractorCosts || 0),
         operatingExpenses: Number(operatingExpenses || 0),
+        totalEarnedSalary: Number(totalEarnedSalary || 0),
         totalEmployeeCosts: Number(Math.max(0, totalEmployeeCosts) || 0),
         totalAdministrationCosts: Number(totalAdministrationCosts || 0),
         totalCapitalInjected: Number(totalCapitalInjected || 0),
@@ -286,7 +351,22 @@ async function bootstrap() {
         totalCrusherPayments: Number(crusherPayments || 0),
         totalEmployeePayments: Number(totalEmployeePayments || 0),
         totalAdministrationPayments: Number(totalAdministrationPayments || 0),
-        totalCashPayments: Number(totalCashPayments || 0)
+        totalCashPayments: Number(totalCashPayments || 0),
+
+        // Outstanding Balances
+        totalClientBalancesPositive: Number(totalClientBalancesPositive || 0),
+        totalSupplierBalances: Number(totalSupplierBalances || 0),
+        totalCrusherBalances: Number(totalCrusherBalances || 0),
+        totalContractorBalances: Number(totalContractorBalances || 0),
+        totalEmployeeBalancesNegative: Number(totalEmployeeBalancesNegative || 0),
+
+        // Supplier Data
+        totalSupplierCosts: Number(totalSupplierCosts || 0),
+        totalSupplierPayments: Number(totalSupplierPayments || 0),
+
+        // Adjustments and Losses
+        positiveClientAdjustments: Number(positiveClientAdjustments || 0),
+        totalLosses: Number(totalLosses || 0)
       });
     } catch (err) {
       next(err);

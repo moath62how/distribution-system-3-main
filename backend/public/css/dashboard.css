@@ -1,131 +1,960 @@
-body {
-  font-family: "Cairo", Arial, sans-serif;
-  background: #f6f8fb;
+.main-content {
+    margin-right: 225px;
+    padding: var(--space-8);
+    transition: margin-right 0.25s;
 }
 
-/* Responsive main content with sidebar */
-.main {
-  margin-right: 225px;
-  padding: 40px 30px 38px 18px;
-  min-height: 100vh;
-  transition: margin-right 0.25s;
+/* Tablet breakpoint: 701-1024px */
+@media (max-width: 1024px) {
+    .main-content {
+        margin-right: 190px;
+    }
 }
 
-@media (max-width: 900px) {
-  .main {
-    margin-right: 190px;
-  }
-}
-
+/* Mobile breakpoint: <700px */
 @media (max-width: 700px) {
-  .main {
-    margin-right: 0;
-    padding: 28px 7px 24px 7px;
-  }
+    .main-content {
+        margin-right: 0;
+        padding: var(--space-4);
+    }
 }
 
-/* Dashboard cards */
-.dashboard-cards {
-  display: grid;
-  gap: 22px;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  margin-bottom: 36px;
+.page-header {
+    margin-bottom: var(--space-8);
 }
 
-.dashboard-card {
-  background: #f9fbff;
-  border: 1.7px solid #d3e7ff;
-  box-shadow: 0 8px 24px #23509c10;
-  border-radius: 14px;
-  padding: 26px 15px 22px 18px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  min-height: 126px;
-  transition:
-    box-shadow 0.13s,
-    border 0.13s;
-  position: relative;
+.page-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: var(--space-2);
 }
 
-.dashboard-card .card-value {
-  font-size: 2.12rem;
-  color: #247ae0;
-  font-weight: 700;
-  direction: ltr;
-  margin-bottom: 7px;
+.page-subtitle {
+    color: var(--gray-600);
+    font-size: 1.125rem;
 }
 
-.dashboard-card .card-label {
-  font-size: 1.105rem;
-  color: #3c5275;
-  font-weight: 500;
+.financial-overview {
+    background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-800) 100%);
+    color: white;
+    border-radius: var(--radius-xl);
+    padding: var(--space-8);
+    margin-bottom: var(--space-8);
+    box-shadow: var(--shadow-lg);
 }
 
-.dashboard-card.sales .card-value {
-  color: #2d6e3a;
+.financial-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-6);
+    margin-top: var(--space-6);
 }
 
-.dashboard-card.profit .card-value {
-  color: #ba7e18;
+.financial-section {
+    grid-column: 1 / -1;
+    margin-top: var(--space-6);
 }
 
-.dashboard-card.customers .card-value {
-  color: #2d5397;
+.financial-section:first-child {
+    margin-top: 0;
 }
 
-.dashboard-card.deliveries .card-value {
-  color: #247ae0;
+.financial-section-header {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-2);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    color: var(--gray-50);
 }
 
-.dashboard-card.quarries .card-value {
-  color: #285236;
+.financial-section-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-6);
 }
 
-.dashboard-card.contractors .card-value {
-  color: #c0392b;
+.financial-item,
+.financial-section-item {
+    text-align: center;
 }
 
-/* Chart section */
-.dashboard-charts-section {
-  margin-top: 27px;
+.financial-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: var(--space-2);
+    color: var(--gray-50);
 }
 
-.charts-title {
-  font-weight: 600;
-  color: #27406b;
-  font-size: 1.22rem;
-  margin-bottom: 18px;
-  margin-top: 0;
+.financial-label {
+    font-size: 0.875rem;
+    opacity: 0.9;
+    color: var(--gray-100);
 }
 
-.charts-placeholders {
-  display: grid;
-  gap: 24px;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--space-4);
+    margin-bottom: var(--space-8);
 }
 
-.chart-placeholder {
-  background: #f3f7fa;
-  border: 1.25px solid #dae6f6;
-  min-height: 230px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  color: #a1b3ce;
-  font-size: 1.13rem;
-  font-style: italic;
+.action-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--gray-200);
+    transition: all 0.2s ease;
+    text-decoration: none;
+    color: inherit;
 }
 
-@media (max-width: 600px) {
-  .dashboard-cards {
-    grid-template-columns: 1fr;
-    gap: 15px;
-  }
+.action-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+    border-color: var(--primary-300);
+}
 
-  .charts-placeholders {
-    grid-template-columns: 1fr;
-    gap: 14px;
-  }
+.action-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--primary-100);
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--space-4);
+    font-size: 1.5rem;
+}
+
+.action-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: var(--space-2);
+    color: var(--gray-900);
+}
+
+.action-description {
+    color: var(--gray-600);
+    font-size: 0.875rem;
+}
+
+.recent-activity {
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--gray-200);
+}
+
+.activity-item {
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--gray-100);
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.activity-content {
+    flex: 1;
+}
+
+.activity-title {
+    font-weight: 500;
+    color: var(--gray-900);
+    margin-bottom: var(--space-1);
+}
+
+.activity-time {
+    font-size: 0.75rem;
+    color: var(--gray-500);
+}
+
+.loading {
+    text-align: center;
+    padding: var(--space-8);
+    color: var(--gray-500);
+}
+
+.error {
+    text-align: center;
+    padding: var(--space-8);
+    color: var(--danger-600);
+    background: var(--danger-50);
+    border-radius: var(--radius);
+    border: 1px solid var(--danger-200);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-4);
+    margin-bottom: var(--space-8);
+}
+
+.stat-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--gray-200);
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 1.875rem;
+    font-weight: 700;
+    margin-bottom: var(--space-2);
+    color: var(--gray-900);
+}
+
+.stat-value.text-success {
+    color: var(--success-600);
+}
+
+.stat-value.text-danger {
+    color: var(--danger-600);
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--gray-600);
+    margin-bottom: var(--space-1);
+}
+
+.stat-change {
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.stat-change.positive {
+    color: var(--success-600);
+}
+
+.stat-change.negative {
+    color: var(--danger-600);
+}
+
+.card-header {
+    padding: var(--space-6);
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin: 0;
+}
+
+/* Profit Overview Section Styles */
+.profit-overview-section {
+    margin-bottom: var(--space-8);
+}
+
+.profit-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--space-6);
+}
+
+.profit-card {
+    background: white;
+    border-radius: var(--radius-xl);
+    padding: var(--space-8);
+    box-shadow: var(--shadow-lg);
+    border: 2px solid var(--gray-200);
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.profit-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-xl);
+}
+
+.profit-icon {
+    font-size: 3rem;
+    margin-bottom: var(--space-4);
+}
+
+.profit-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: var(--space-3);
+    color: var(--gray-900);
+}
+
+.profit-value.result-positive {
+    color: var(--success-600);
+}
+
+.profit-value.result-negative {
+    color: var(--danger-600);
+}
+
+.profit-label {
+    font-size: 1.125rem;
+    color: var(--gray-600);
+    font-weight: 500;
+}
+
+/* Responsive adjustments for Profit Overview */
+@media (max-width: 700px) {
+    .profit-cards-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .profit-value {
+        font-size: 2rem;
+    }
+
+    .profit-icon {
+        font-size: 2.5rem;
+    }
+}
+
+/* Final Financial Result Card Styles */
+.final-result-section {
+    margin-bottom: var(--space-8);
+}
+
+.final-result-card {
+    background: white;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    border: 2px solid var(--primary-200);
+    overflow: hidden;
+}
+
+.final-result-header {
+    background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-800) 100%);
+    color: white;
+    padding: var(--space-6);
+    text-align: center;
+}
+
+.final-result-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.final-result-body {
+    padding: var(--space-6);
+}
+
+.final-result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-4) 0;
+}
+
+.final-result-row.highlight {
+    font-weight: 600;
+    font-size: 1.125rem;
+}
+
+.result-label {
+    color: var(--gray-700);
+}
+
+.result-value {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.result-value.result-positive {
+    color: var(--success-600);
+}
+
+.result-value.result-negative {
+    color: var(--danger-600);
+}
+
+.result-value.result-neutral {
+    color: var(--gray-900);
+}
+
+.final-result-divider {
+    height: 2px;
+    background: var(--gray-200);
+    margin: var(--space-4) 0;
+}
+
+/* Responsive adjustments for Final Financial Result Card */
+@media (max-width: 700px) {
+    .final-result-title {
+        font-size: 1.25rem;
+    }
+
+    .final-result-row {
+        padding: var(--space-3) 0;
+    }
+
+    .result-value {
+        font-size: 1rem;
+    }
+
+    .final-result-row.highlight {
+        font-size: 1rem;
+    }
+}
+
+/* Cost Breakdown Section Styles */
+.cost-breakdown-section {
+    margin-bottom: var(--space-8);
+}
+
+.section-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: var(--space-6);
+    text-align: center;
+}
+
+.cost-breakdown-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-6);
+    background: white;
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    box-shadow: var(--shadow-lg);
+    border: 2px solid var(--gray-200);
+}
+
+.cost-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.cost-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-3);
+    background: var(--gray-50);
+    border-radius: var(--radius);
+    border: 1px solid var(--gray-200);
+}
+
+.cost-category {
+    font-weight: 600;
+    color: var(--gray-700);
+}
+
+.cost-amount {
+    font-weight: 700;
+    color: var(--gray-900);
+    font-size: 1.125rem;
+}
+
+.cost-chart-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+}
+
+.cost-chart-container canvas {
+    max-height: 350px;
+}
+
+/* Responsive adjustments for Cost Breakdown */
+/* Tablet breakpoint: 701-1024px - Two column layout */
+@media (max-width: 1024px) {
+    .cost-breakdown-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* Mobile breakpoint: <700px - Single column layout */
+@media (max-width: 700px) {
+    .cost-breakdown-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .cost-chart-container {
+        order: -1;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+    }
+
+    .cost-amount {
+        font-size: 1rem;
+    }
+}
+
+/* Cash Flow Section Styles */
+.cash-flow-section {
+    margin-bottom: var(--space-8);
+}
+
+.cash-flow-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-6);
+    background: white;
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    box-shadow: var(--shadow-lg);
+    border: 2px solid var(--gray-200);
+}
+
+.cash-flow-column {
+    display: flex;
+    flex-direction: column;
+}
+
+.column-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: var(--space-4);
+    text-align: center;
+    padding-bottom: var(--space-3);
+    border-bottom: 2px solid var(--gray-200);
+}
+
+.cash-flow-items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    flex: 1;
+}
+
+.cash-flow-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-3);
+    background: var(--gray-50);
+    border-radius: var(--radius);
+    border: 1px solid var(--gray-200);
+}
+
+.item-label {
+    font-weight: 500;
+    color: var(--gray-700);
+    font-size: 0.9375rem;
+}
+
+.item-value {
+    font-weight: 700;
+    color: var(--gray-900);
+    font-size: 1rem;
+}
+
+.cash-flow-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-4);
+    background: var(--primary-50);
+    border-radius: var(--radius);
+    border: 2px solid var(--primary-200);
+    margin-top: var(--space-4);
+    font-weight: 700;
+    font-size: 1.125rem;
+}
+
+.total-value {
+    color: var(--primary-700);
+}
+
+.net-cash-flow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-6);
+    background: white;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    border: 2px solid var(--gray-200);
+    margin-top: var(--space-6);
+}
+
+.net-label {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--gray-900);
+}
+
+.net-value {
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.net-value.result-positive {
+    color: var(--success-600);
+}
+
+.net-value.result-negative {
+    color: var(--danger-600);
+}
+
+/* Responsive adjustments for Cash Flow */
+/* Tablet breakpoint: 701-1024px - Two column layout */
+@media (max-width: 1024px) {
+    .cash-flow-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* Mobile breakpoint: <700px - Single column layout */
+@media (max-width: 700px) {
+    .cash-flow-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .column-title {
+        font-size: 1.125rem;
+    }
+
+    .item-value {
+        font-size: 0.9375rem;
+    }
+
+    .cash-flow-total {
+        font-size: 1rem;
+    }
+
+    .net-label {
+        font-size: 1.25rem;
+    }
+
+    .net-value {
+        font-size: 1.5rem;
+    }
+}
+
+/* Outstanding Balances Section Styles */
+.outstanding-balances-section {
+    margin-bottom: var(--space-8);
+}
+
+.balances-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-6);
+}
+
+.balance-panel {
+    background: white;
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    box-shadow: var(--shadow-lg);
+    border: 2px solid var(--gray-200);
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-3);
+    border-bottom: 2px solid var(--gray-200);
+}
+
+.panel-icon {
+    font-size: 2rem;
+}
+
+.panel-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0;
+}
+
+.panel-total {
+    font-size: 2.5rem;
+    font-weight: 700;
+    text-align: center;
+    padding: var(--space-6) 0;
+    margin-bottom: var(--space-4);
+}
+
+.panel-total.balance-positive {
+    color: var(--success-600);
+}
+
+.panel-total.balance-negative {
+    color: var(--danger-600);
+}
+
+.panel-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.breakdown-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-3);
+    background: var(--gray-50);
+    border-radius: var(--radius);
+    border: 1px solid var(--gray-200);
+}
+
+.breakdown-item span:first-child {
+    font-weight: 500;
+    color: var(--gray-700);
+}
+
+.breakdown-item span:last-child {
+    font-weight: 700;
+    color: var(--gray-900);
+    font-size: 1.125rem;
+}
+
+/* Responsive adjustments for Outstanding Balances */
+/* Tablet breakpoint: 701-1024px - Two column layout */
+@media (max-width: 1024px) {
+    .balances-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* Mobile breakpoint: <700px - Single column layout */
+@media (max-width: 700px) {
+    .balances-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .panel-title {
+        font-size: 1.125rem;
+    }
+
+    .panel-total {
+        font-size: 2rem;
+    }
+
+    .breakdown-item span:last-child {
+        font-size: 1rem;
+    }
+}
+
+/* Operational Metrics Section Styles */
+.operational-metrics-section {
+    margin-bottom: var(--space-8);
+}
+
+.operational-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--space-4);
+}
+
+.operational-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--gray-200);
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.operational-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.operational-icon {
+    font-size: 2rem;
+    margin-bottom: var(--space-3);
+}
+
+.operational-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: var(--space-2);
+    color: var(--gray-900);
+}
+
+.operational-label {
+    font-size: 0.875rem;
+    color: var(--gray-600);
+    font-weight: 500;
+}
+
+/* Responsive adjustments for Operational Metrics */
+/* Mobile breakpoint: <700px */
+@media (max-width: 700px) {
+    .operational-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+
+    .operational-value {
+        font-size: 1.5rem;
+    }
+
+    .operational-icon {
+        font-size: 1.75rem;
+    }
+}
+
+/* ============================================
+   COMPREHENSIVE RESPONSIVE BREAKPOINTS
+   ============================================ */
+
+/* Desktop breakpoint: >1024px - Multi-column layouts (default) */
+@media (min-width: 1025px) {
+
+    /* Profit cards: 3 columns on large screens */
+    .profit-cards-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    /* Cost breakdown: 2 columns (chart + list) */
+    .cost-breakdown-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    /* Cash flow: 2 columns (money in + money out) */
+    .cash-flow-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    /* Outstanding balances: 2 columns (owed to us + we owe) */
+    .balances-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    /* Operational metrics: Multi-column auto-fit */
+    .operational-grid {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+
+    /* Ensure text remains readable */
+    .profit-value {
+        font-size: 2.5rem;
+    }
+
+    .section-title {
+        font-size: 1.5rem;
+    }
+}
+
+/* Tablet breakpoint: 701-1024px - Two-column layouts */
+@media (min-width: 701px) and (max-width: 1024px) {
+
+    /* Profit cards: 2 columns on tablet */
+    .profit-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* Cost breakdown: 2 columns maintained */
+    .cost-breakdown-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    /* Cash flow: 2 columns maintained */
+    .cash-flow-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    /* Outstanding balances: 2 columns maintained */
+    .balances-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    /* Operational metrics: 2-3 columns */
+    .operational-grid {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+
+    /* Adjust font sizes for readability */
+    .profit-value {
+        font-size: 2.25rem;
+    }
+
+    .section-title {
+        font-size: 1.375rem;
+    }
+
+    .panel-total {
+        font-size: 2.25rem;
+    }
+
+    .net-value {
+        font-size: 1.875rem;
+    }
+}
+
+/* Mobile breakpoint: <700px - Single-column layouts */
+@media (max-width: 700px) {
+
+    /* All grids become single column */
+    .profit-cards-grid,
+    .cost-breakdown-grid,
+    .cash-flow-grid,
+    .balances-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Operational metrics: 2 columns minimum on mobile */
+    .operational-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* Ensure all text remains readable */
+    .profit-value {
+        font-size: 2rem;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+    }
+
+    .panel-total {
+        font-size: 2rem;
+    }
+
+    .net-value {
+        font-size: 1.5rem;
+    }
+
+    .result-value {
+        font-size: 1rem;
+    }
+
+    /* Chart remains legible */
+    .cost-chart-container canvas {
+        max-height: 250px;
+    }
+
+    /* Maintain visual hierarchy */
+    .profit-card {
+        padding: var(--space-6);
+    }
+
+    .final-result-body {
+        padding: var(--space-4);
+    }
 }

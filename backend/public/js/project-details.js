@@ -123,6 +123,7 @@ async function displayDetailedFinancialCards() {
             materialCosts += materialPrice * netQuantity;
             contractorCosts += (delivery.contractor_charge_per_meter || 0) * netQuantity;
             totalRevenue += (delivery.price_per_meter || 0) * quantity;
+            console.log(delivery.price_per_meter, delivery._id)
         });
 
         console.log('🚚 Deliveries Debug:');

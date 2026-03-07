@@ -8,244 +8,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/modern-theme.css">
     <link rel="stylesheet" href="css/sidebar.css">
-    <style>
-        .main-content {
-            margin-right: 225px;
-            padding: var(--space-8);
-            transition: margin-right 0.25s;
-        }
-
-        @media (max-width: 900px) {
-            .main-content {
-                margin-right: 190px;
-            }
-        }
-
-        @media (max-width: 700px) {
-            .main-content {
-                margin-right: 0;
-                padding: var(--space-4);
-            }
-        }
-
-        .page-header {
-            margin-bottom: var(--space-8);
-        }
-
-        .page-title {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: var(--gray-900);
-            margin-bottom: var(--space-2);
-        }
-
-        .page-subtitle {
-            color: var(--gray-600);
-            font-size: 1.125rem;
-        }
-
-        .financial-overview {
-            background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-800) 100%);
-            color: white;
-            border-radius: var(--radius-xl);
-            padding: var(--space-8);
-            margin-bottom: var(--space-8);
-            box-shadow: var(--shadow-lg);
-        }
-
-        .financial-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: var(--space-6);
-            margin-top: var(--space-6);
-        }
-
-        .financial-item {
-            text-align: center;
-        }
-
-        .financial-value {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: var(--space-2);
-        }
-
-        .financial-label {
-            font-size: 0.875rem;
-            opacity: 0.9;
-        }
-
-        .quick-actions {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: var(--space-4);
-            margin-bottom: var(--space-8);
-        }
-
-        .action-card {
-            background: white;
-            border-radius: var(--radius-lg);
-            padding: var(--space-6);
-            box-shadow: var(--shadow);
-            border: 1px solid var(--gray-200);
-            transition: all 0.2s ease;
-            text-decoration: none;
-            color: inherit;
-        }
-
-        .action-card:hover {
-            box-shadow: var(--shadow-md);
-            transform: translateY(-2px);
-            border-color: var(--primary-300);
-        }
-
-        .action-icon {
-            width: 48px;
-            height: 48px;
-            background: var(--primary-100);
-            border-radius: var(--radius-lg);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: var(--space-4);
-            font-size: 1.5rem;
-        }
-
-        .action-title {
-            font-size: 1.125rem;
-            font-weight: 600;
-            margin-bottom: var(--space-2);
-            color: var(--gray-900);
-        }
-
-        .action-description {
-            color: var(--gray-600);
-            font-size: 0.875rem;
-        }
-
-        .recent-activity {
-            background: white;
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow);
-            border: 1px solid var(--gray-200);
-        }
-
-        .activity-item {
-            padding: var(--space-4);
-            border-bottom: 1px solid var(--gray-100);
-            display: flex;
-            align-items: center;
-            gap: var(--space-4);
-        }
-
-        .activity-item:last-child {
-            border-bottom: none;
-        }
-
-        .activity-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: var(--radius);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.25rem;
-            flex-shrink: 0;
-        }
-
-        .activity-content {
-            flex: 1;
-        }
-
-        .activity-title {
-            font-weight: 500;
-            color: var(--gray-900);
-            margin-bottom: var(--space-1);
-        }
-
-        .activity-time {
-            font-size: 0.75rem;
-            color: var(--gray-500);
-        }
-
-        .loading {
-            text-align: center;
-            padding: var(--space-8);
-            color: var(--gray-500);
-        }
-
-        .error {
-            text-align: center;
-            padding: var(--space-8);
-            color: var(--danger-600);
-            background: var(--danger-50);
-            border-radius: var(--radius);
-            border: 1px solid var(--danger-200);
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: var(--space-4);
-            margin-bottom: var(--space-8);
-        }
-
-        .stat-card {
-            background: white;
-            border-radius: var(--radius-lg);
-            padding: var(--space-6);
-            box-shadow: var(--shadow);
-            border: 1px solid var(--gray-200);
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: 1.875rem;
-            font-weight: 700;
-            margin-bottom: var(--space-2);
-            color: var(--gray-900);
-        }
-
-        .stat-value.text-success {
-            color: var(--success-600);
-        }
-
-        .stat-value.text-danger {
-            color: var(--danger-600);
-        }
-
-        .stat-label {
-            font-size: 0.875rem;
-            color: var(--gray-600);
-            margin-bottom: var(--space-1);
-        }
-
-        .stat-change {
-            font-size: 0.75rem;
-            font-weight: 500;
-        }
-
-        .stat-change.positive {
-            color: var(--success-600);
-        }
-
-        .stat-change.negative {
-            color: var(--danger-600);
-        }
-
-        .card-header {
-            padding: var(--space-6);
-            border-bottom: 1px solid var(--gray-200);
-        }
-
-        .card-title {
-            font-size: 1.125rem;
-            font-weight: 600;
-            color: var(--gray-900);
-            margin: 0;
-        }
-    </style>
+    <link rel="stylesheet" href="css/dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 
 <body>
     <div id="sidebar-placeholder"></div>
@@ -279,6 +45,52 @@
                 </div>
             </div>
         </div>
+
+        <!-- Profit Overview Section - Top Priority -->
+        <section class="profit-overview-section" dir="rtl" id="profitOverviewSection">
+            <div class="profit-cards-grid">
+                <div class="loading">جاري تحميل نظرة عامة على الربح...</div>
+            </div>
+        </section>
+
+        <!-- Final Financial Result Card -->
+        <section class="final-result-section" dir="rtl" id="finalResultSection">
+            <div class="loading" style="text-align: center; padding: var(--space-8); color: var(--gray-500);">
+                جاري تحميل النتيجة المالية النهائية...
+            </div>
+        </section>
+
+        <!-- Cost Breakdown Section -->
+        <section class="cost-breakdown-section" dir="rtl" id="costBreakdownSection">
+            <h2 class="section-title">توزيع التكاليف</h2>
+            <div class="loading" style="text-align: center; padding: var(--space-8); color: var(--gray-500);">
+                جاري تحميل توزيع التكاليف...
+            </div>
+        </section>
+
+        <!-- Cash Flow Section -->
+        <section class="cash-flow-section" dir="rtl" id="cashFlowSection">
+            <h2 class="section-title">حركة النقد</h2>
+            <div class="loading" style="text-align: center; padding: var(--space-8); color: var(--gray-500);">
+                جاري تحميل حركة النقد...
+            </div>
+        </section>
+
+        <!-- Outstanding Balances Section -->
+        <section class="outstanding-balances-section" dir="rtl" id="outstandingBalancesSection">
+            <h2 class="section-title">الأرصدة المستحقة</h2>
+            <div class="loading" style="text-align: center; padding: var(--space-8); color: var(--gray-500);">
+                جاري تحميل الأرصدة المستحقة...
+            </div>
+        </section>
+
+        <!-- Operational Metrics Section -->
+        <section class="operational-metrics-section" dir="rtl" id="operationalMetricsSection">
+            <h2 class="section-title">المقاييس التشغيلية</h2>
+            <div class="loading" style="text-align: center; padding: var(--space-8); color: var(--gray-500);">
+                جاري تحميل المقاييس التشغيلية...
+            </div>
+        </section>
 
         <div class="financial-overview">
             <h2 class="text-xl font-semibold mb-4">الملخص المالي</h2>
@@ -319,10 +131,6 @@
             </a>
         </div>
 
-        <div class="stats-grid" id="statsGrid">
-            <div class="loading">جاري تحميل الإحصائيات...</div>
-        </div>
-
         <div class="recent-activity">
             <div class="card-header">
                 <h3 class="card-title">النشاط الأخير</h3>
@@ -336,258 +144,7 @@
     <script src="js/utils/index.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/sidebar.js"></script>
-    <script>
-        // Utilities are loaded via utils/index.js - no need to redefine common functions
-
-        async function loadDashboardData() {
-            try {
-                // Check if API utilities are available
-                if (typeof apiGet === 'undefined') {
-                    throw new Error('API utilities not loaded');
-                }
-
-                // Check authentication first
-                if (!authManager.isAuthenticated()) {
-                    window.location.href = '/login.html';
-                    return;
-                }
-
-                // Use only the metrics API endpoint for consistent data
-                const metrics = await apiGet('/metrics');
-
-                // Load additional data for recent activity
-                const [clientsData, contractorsData, crushersData] = await Promise.all([
-                    apiGet('/clients?limit=5'),
-                    apiGet('/contractors?limit=5'),
-                    apiGet('/crushers?limit=5')
-                ]);
-
-                const clients = clientsData.clients || clientsData.data || [];
-                const contractors = contractorsData.contractors || contractorsData.data || [];
-                const crushers = crushersData.crushers || crushersData.data || [];
-
-                // Use metrics from API directly (no frontend calculations)
-                renderFinancialOverview(metrics);
-                renderStats(metrics, clients, contractors, crushers);
-                renderRecentActivity(clients, contractors, crushers);
-
-                // Update last refresh time
-                const lastUpdateEl = document.getElementById('lastUpdate');
-                if (lastUpdateEl) {
-                    const now = new Date().toLocaleString('ar-EG');
-                    lastUpdateEl.textContent = `آخر تحديث: ${now}`;
-                }
-
-            } catch (error) {
-                console.error('Error loading dashboard data:', error);
-                document.getElementById('financialOverview').innerHTML =
-                    '<div class="error">خطأ في تحميل البيانات المالية</div>';
-                document.getElementById('statsGrid').innerHTML =
-                    '<div class="error">خطأ في تحميل الإحصائيات</div>';
-                document.getElementById('recentActivity').innerHTML =
-                    '<div class="error">خطأ في تحميل النشاط الأخير</div>';
-            }
-        }
-
-        function renderFinancialOverview(metrics) {
-            const container = document.getElementById('financialOverview');
-            container.innerHTML = `
-                <div class="financial-item">
-                    <div class="financial-value">${formatCurrency(metrics.totalSales)}</div>
-                    <div class="financial-label">إجمالي المبيعات</div>
-                </div>
-                <div class="financial-item">
-                    <div class="financial-value">${formatCurrency(metrics.totalCrusherCosts)}</div>
-                    <div class="financial-label">تكلفة الكسارات</div>
-                </div>
-                <div class="financial-item">
-                    <div class="financial-value">${formatCurrency(metrics.totalContractorCosts)}</div>
-                    <div class="financial-label">تكلفة المقاولين</div>
-                </div>
-                <div class="financial-item">
-                    <div class="financial-value">${formatCurrency(metrics.operatingExpenses)}</div>
-                    <div class="financial-label">المصروفات التشغيلية</div>
-                </div>
-                <div class="financial-item">
-                    <div class="financial-value">${formatCurrency(metrics.totalExpenses)}</div>
-                    <div class="financial-label">إجمالي المصروفات</div>
-                </div>
-                <div class="financial-item">
-                    <div class="financial-value ${metrics.netProfit >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(metrics.netProfit)}</div>
-                    <div class="financial-label">صافي الربح</div>
-                </div>
-                <div class="financial-item">
-                    <div class="financial-value">${formatCurrency(metrics.totalCashPayments)}</div>
-                    <div class="financial-label">إجمالي المدفوعات النقدية</div>
-                </div>
-            `;
-        }
-
-        function renderStats(metrics, clients, contractors, crushers) {
-            const container = document.getElementById('statsGrid');
-
-            // Calculate balance summaries from actual data
-            const clientsOwingUs = clients.filter(c => (c.balance || 0) > 0).reduce((sum, c) => sum + c.balance, 0);
-            const clientsWeOwe = Math.abs(clients.filter(c => (c.balance || 0) < 0).reduce((sum, c) => sum + c.balance, 0));
-            const contractorsWeOwe = contractors.filter(c => (c.balance || 0) > 0).reduce((sum, c) => sum + c.balance, 0);
-            const crushersWeOwe = crushers.filter(c => (c.net || 0) > 0).reduce((sum, c) => sum + c.net, 0);
-
-            container.innerHTML = `
-                <div class="stat-card">
-                    <div class="stat-value">${metrics.totalClients}</div>
-                    <div class="stat-label">إجمالي العملاء</div>
-                    <div class="stat-change positive">عميل نشط</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">${metrics.totalContractors}</div>
-                    <div class="stat-label">مقاولو النقل</div>
-                    <div class="stat-change positive">مقاول نشط</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">${metrics.totalCrushers}</div>
-                    <div class="stat-label">الكسارات</div>
-                    <div class="stat-change positive">كسارة نشطة</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">${metrics.totalDeliveries}</div>
-                    <div class="stat-label">إجمالي التسليمات</div>
-                    <div class="stat-change positive">عملية تسليم مكتملة</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value text-success">${formatCurrency(clientsOwingUs)}</div>
-                    <div class="stat-label">مستحقات العملاء</div>
-                    <div class="stat-change positive">مبالغ مستحقة لنا</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value text-danger">${formatCurrency(clientsWeOwe)}</div>
-                    <div class="stat-label">مستحقات للعملاء</div>
-                    <div class="stat-change negative">مبالغ مستحقة للعملاء</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value text-danger">${formatCurrency(contractorsWeOwe)}</div>
-                    <div class="stat-label">مستحقات المقاولين</div>
-                    <div class="stat-change negative">مبالغ مستحقة للمقاولين</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value text-danger">${formatCurrency(crushersWeOwe)}</div>
-                    <div class="stat-label">مستحقات الكسارات</div>
-                    <div class="stat-change negative">مبالغ مستحقة للكسارات</div>
-                </div>
-            `;
-        }
-
-        function renderRecentActivity(clients, contractors, crushers) {
-            const container = document.getElementById('recentActivity');
-            const activities = [];
-
-            // Add recent clients (those with recent activity)
-            clients.slice(0, 3).forEach(client => {
-                activities.push({
-                    type: 'client',
-                    title: `عميل: ${client.name}`,
-                    description: `الرصيد: ${formatCurrency(client.balance)}`,
-                    time: formatDate(client.created_at),
-                    icon: '👤',
-                    iconBg: client.balance > 0 ? 'var(--success-100)' : client.balance < 0 ? 'var(--danger-100)' : 'var(--gray-100)'
-                });
-            });
-
-            // Add recent contractors
-            contractors.slice(0, 2).forEach(contractor => {
-                activities.push({
-                    type: 'contractor',
-                    title: `مقاول: ${contractor.name}`,
-                    description: `الرصيد: ${formatCurrency(contractor.balance)}`,
-                    time: formatDate(contractor.created_at),
-                    icon: '🚛',
-                    iconBg: contractor.balance > 0 ? 'var(--warning-100)' : 'var(--success-100)'
-                });
-            });
-
-            // Add recent crushers
-            crushers.slice(0, 2).forEach(crusher => {
-                activities.push({
-                    type: 'crusher',
-                    title: `كسارة: ${crusher.name}`,
-                    description: `الصافي: ${formatCurrency(crusher.net || 0)}`,
-                    time: formatDate(crusher.created_at),
-                    icon: '🏭',
-                    iconBg: 'var(--primary-100)'
-                });
-            });
-
-            if (activities.length === 0) {
-                container.innerHTML = '<div class="loading">لا توجد أنشطة حديثة</div>';
-                return;
-            }
-
-            container.innerHTML = activities.map(activity => `
-                <div class="activity-item">
-                    <div class="activity-icon" style="background: ${activity.iconBg}">
-                        ${activity.icon}
-                    </div>
-                    <div class="activity-content">
-                        <div class="activity-title">${activity.title}</div>
-                        <div class="activity-time">${activity.description} • ${activity.time}</div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // Auto-refresh functionality
-        let autoRefreshInterval;
-
-        function startAutoRefresh() {
-            if (autoRefreshInterval) {
-                clearInterval(autoRefreshInterval);
-            }
-            autoRefreshInterval = setInterval(loadDashboardData, 30000); // Refresh every 30 seconds
-        }
-
-        function stopAutoRefresh() {
-            if (autoRefreshInterval) {
-                clearInterval(autoRefreshInterval);
-                autoRefreshInterval = null;
-            }
-        }
-
-        // Wait for utilities to load before initializing dashboard
-        async function initializeDashboard() {
-            // Wait for utilities to be available
-            let attempts = 0;
-            const maxAttempts = 50; // 5 seconds max wait
-
-            while (typeof apiGet === 'undefined' && attempts < maxAttempts) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-                attempts++;
-            }
-
-            if (typeof apiGet === 'undefined') {
-                console.error('API utilities failed to load');
-                document.getElementById('financialOverview').innerHTML =
-                    '<div class="error">فشل في تحميل أدوات النظام</div>';
-                return;
-            }
-
-            // Now load dashboard data
-            loadDashboardData();
-            startAutoRefresh();
-        }
-
-        // Load data when page loads and start auto-refresh
-        document.addEventListener('DOMContentLoaded', initializeDashboard);
-
-        // Stop auto-refresh when page is hidden/closed
-        document.addEventListener('visibilitychange', function () {
-            if (document.hidden) {
-                stopAutoRefresh();
-            } else {
-                startAutoRefresh();
-            }
-        });
-
-        window.addEventListener('beforeunload', stopAutoRefresh);
-    </script>
+    <script src="js/dashboard.js"></script>
 </body>
 
 </html>
