@@ -77,19 +77,20 @@ class EmployeeService {
         }
 
         // Get related data
+        console.time("payments_query");
         const payments = await EmployeePayment.find({ employee_id: id })
             .sort({ paid_at: -1 });
-
+        console.timeEnd("payments_query");
         const adjustments = await Adjustment.find({
             entity_type: 'employee',
             entity_id: id
         }).sort({ created_at: -1 });
-
         const attendance = await Attendance.find({ employee_id: id })
             .sort({ period_start: -1 });
+        console.time("payroll_calculation");
+        const balanceData = await PayrollService.calculateEmployeeBalance(employee);
+        console.timeEnd("payroll_calculation");
 
-        // Calculate payroll data using payroll service
-        const balanceData = await PayrollService.calculateEmployeeBalance(id);
 
         return {
             employee: {

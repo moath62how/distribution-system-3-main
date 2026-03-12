@@ -51,7 +51,7 @@ class PayrollService {
     static validateAttendanceRecordForPayroll(record) {
         // Ensure period_days is calculated
         const periodDays = record.period_days || this.calculatePeriodDays(record.period_start, record.period_end);
-        
+
         // Hard stop: period_days must be > 0
         if (periodDays <= 0) {
             return false;
@@ -59,7 +59,7 @@ class PayrollService {
 
         // Get worked days (support old and new field names)
         const workedDays = record.worked_days || record.working_days || 0;
-        
+
         // Validate worked days
         if (workedDays < 0) {
             return false;
@@ -93,36 +93,37 @@ class PayrollService {
 
     /**
      * Calculate total earned salary for an employee across all attendance records
-     * @param {string} employeeId - Employee ID
+     * @param {Object} employee - Employee object (must have _id and basic_salary)
      * @returns {Promise<Object>} Salary calculation details
      */
-    static async calculateTotalEarnedSalary(employeeId) {
-        const employee = await Employee.findById(employeeId);
-        if (!employee) {
-            throw new Error('Employee not found');
+    static async calculateTotalEarnedSalary(employee) {
+        // Validate employee object
+        if (!employee || !employee._id) {
+            throw new Error('Invalid employee object: must have _id property');
         }
 
+        const employeeId = employee._id.toString();
         const attendanceRecords = await Attendance.find({ employee_id: employeeId });
-        
+
         // SAFETY GUARD: Check calculation preconditions
         if (!this.validateCalculationPreconditions(employee, attendanceRecords)) {
             // Still calculate actual worked days for display, even if payroll is invalid
             let actualWorkedDays = 0;
             let actualPeriodDays = 0;
-            
+
             for (const record of attendanceRecords) {
                 const transformedRecord = { ...record.toObject ? record.toObject() : record };
-                
+
                 // Calculate period_days if missing
                 if (!transformedRecord.period_days && transformedRecord.period_start && transformedRecord.period_end) {
                     transformedRecord.period_days = this.calculatePeriodDays(transformedRecord.period_start, transformedRecord.period_end);
                 }
-                
+
                 // Handle old working_days field
                 if (transformedRecord.worked_days === undefined && transformedRecord.working_days !== undefined) {
                     transformedRecord.worked_days = transformedRecord.working_days;
                 }
-                
+
                 // Handle old absence_days logic
                 if (!transformedRecord.record_type) {
                     if (transformedRecord.absence_days > 0) {
@@ -135,14 +136,14 @@ class PayrollService {
                         }
                     }
                 }
-                
+
                 // Add to totals for display purposes
                 if (transformedRecord.worked_days >= 0 && transformedRecord.period_days > 0) {
                     actualWorkedDays += transformedRecord.worked_days;
                     actualPeriodDays += transformedRecord.period_days;
                 }
             }
-            
+
             return {
                 employee_id: employeeId,
                 basic_salary: employee.basic_salary || employee.base_salary,
@@ -159,21 +160,21 @@ class PayrollService {
 
         // Transform and filter valid attendance records for payroll
         const validRecords = [];
-        
+
         for (const record of attendanceRecords) {
             // Transform old data format to new format
             const transformedRecord = { ...record.toObject ? record.toObject() : record };
-            
+
             // Calculate period_days if missing
             if (!transformedRecord.period_days && transformedRecord.period_start && transformedRecord.period_end) {
                 transformedRecord.period_days = this.calculatePeriodDays(transformedRecord.period_start, transformedRecord.period_end);
             }
-            
+
             // Handle old working_days field
             if (transformedRecord.worked_days === undefined && transformedRecord.working_days !== undefined) {
                 transformedRecord.worked_days = transformedRecord.working_days;
             }
-            
+
             // Handle old absence_days logic
             if (!transformedRecord.record_type) {
                 if (transformedRecord.absence_days > 0) {
@@ -187,13 +188,13 @@ class PayrollService {
                     }
                 }
             }
-            
+
             // Validate the transformed record
             if (this.validateAttendanceRecordForPayroll(transformedRecord)) {
                 validRecords.push(transformedRecord);
             }
         }
-        
+
         if (validRecords.length === 0) {
             return {
                 employee_id: employeeId,
@@ -208,24 +209,24 @@ class PayrollService {
                 validation_error: 'No valid attendance records for payroll'
             };
         }
-        
+
         let totalEarnedSalary = 0;
         let totalWorkedDays = 0;
         let totalPeriodDays = 0;
-        
+
         const salary = employee.basic_salary || employee.base_salary || 0;
-        
+
         const salaryBreakdown = validRecords.map(record => {
             const earnedForPeriod = this.calculateEarnedSalary(
                 salary,
                 record.worked_days,
                 record.period_days
             );
-            
+
             totalEarnedSalary += earnedForPeriod;
             totalWorkedDays += record.worked_days;
             totalPeriodDays += record.period_days;
-            
+
             return {
                 period_start: record.period_start,
                 period_end: record.period_end,
@@ -254,24 +255,31 @@ class PayrollService {
 
     /**
      * Calculate employee balance (payments vs earned salary)
-     * @param {string} employeeId - Employee ID
+     * @param {Object} employee - Employee object (must have _id and basic_salary)
      * @returns {Promise<Object>} Balance calculation
      */
-    static async calculateEmployeeBalance(employeeId) {
-        // Get salary calculation
-        const salaryData = await this.calculateTotalEarnedSalary(employeeId);
-        
+    static async calculateEmployeeBalance(employee) {
+        // Validate employee object
+        if (!employee || !employee._id) {
+            throw new Error('Invalid employee object: must have _id property');
+        }
+
+        const employeeId = employee._id.toString();
+
+        // Get salary calculation (pass employee object to avoid re-fetching)
+        const salaryData = await this.calculateTotalEarnedSalary(employee);
+
         // Get payments
         const payments = await EmployeePayment.find({ employee_id: employeeId });
         const totalPayments = payments.reduce((sum, p) => sum + toNumber(p.amount), 0);
-        
+
         // Get adjustments
-        const adjustments = await Adjustment.find({ 
-            entity_type: 'employee', 
-            entity_id: employeeId 
+        const adjustments = await Adjustment.find({
+            entity_type: 'employee',
+            entity_id: employeeId
         });
         const totalAdjustments = adjustments.reduce((sum, a) => sum + toNumber(a.amount), 0);
-        
+
         // SAFETY GUARD: If earned salary is 0 or calculation invalid, force balance to 0
         if (!salaryData.calculation_valid || salaryData.total_earned_salary === 0) {
             return {
@@ -287,7 +295,7 @@ class PayrollService {
                 validation_error: salaryData.validation_error || 'No earned salary calculated'
             };
         }
-        
+
         // Calculate balance: payments - (earned_salary + adjustments)
         // Adjustments are added to earned salary:
         // - Positive adjustments (bonuses) increase what employee should get
@@ -295,7 +303,7 @@ class PayrollService {
         // Balance = payments - (earned + adjustments)
         // Negative balance = due to employee, Positive balance = overpaid
         const balance = totalPayments - (salaryData.total_earned_salary + totalAdjustments);
-        
+
         return {
             employee_id: employeeId,
             total_earned_salary: salaryData.total_earned_salary,
@@ -316,17 +324,17 @@ class PayrollService {
      */
     static validateAttendanceRecordForSaving(attendanceData) {
         const { period_start, period_end, record_type, attendance_days, absence_days } = attendanceData;
-        
+
         // Calculate period days
         const start = new Date(period_start);
         const end = new Date(period_end);
         const periodDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
-        
+
         // Validation
         if (periodDays <= 0) {
             throw new Error('Invalid period: end date must be after start date');
         }
-        
+
         if (record_type === 'attendance') {
             if (attendance_days === null || attendance_days === undefined) {
                 throw new Error('Attendance days must be specified when recording attendance');
@@ -337,7 +345,7 @@ class PayrollService {
             if (attendance_days < 0) {
                 throw new Error('Attendance days cannot be negative');
             }
-            
+
             return {
                 ...attendanceData,
                 period_days: periodDays,
@@ -354,9 +362,9 @@ class PayrollService {
             if (absence_days < 0) {
                 throw new Error('Absence days cannot be negative');
             }
-            
+
             const workedDays = periodDays - absence_days;
-            
+
             return {
                 ...attendanceData,
                 period_days: periodDays,
@@ -374,11 +382,12 @@ class PayrollService {
      */
     static async getPayrollSummary() {
         const employees = await Employee.find({ status: 'Active' });
-        
+
         const summaries = await Promise.all(
             employees.map(async (employee) => {
                 try {
-                    const balance = await this.calculateEmployeeBalance(employee._id);
+                    // Pass the employee object directly
+                    const balance = await this.calculateEmployeeBalance(employee);
                     return {
                         employee_id: employee._id,
                         employee_name: employee.name,
@@ -403,7 +412,7 @@ class PayrollService {
                 }
             })
         );
-        
+
         return summaries;
     }
 
@@ -413,13 +422,13 @@ class PayrollService {
      */
     static async getDashboardSafeTotals() {
         const summaries = await this.getPayrollSummary();
-        
+
         // SAFETY GUARD: Only include employees with valid calculations and earned salary > 0
-        const validEmployees = summaries.filter(emp => 
-            emp.calculation_valid !== false && 
+        const validEmployees = summaries.filter(emp =>
+            emp.calculation_valid !== false &&
             emp.total_earned_salary > 0
         );
-        
+
         const totals = validEmployees.reduce((acc, emp) => {
             acc.totalEarnedSalary += emp.total_earned_salary;
             acc.totalPayments += emp.total_payments;
@@ -435,7 +444,7 @@ class PayrollService {
             validEmployeeCount: 0,
             totalEmployeeCount: summaries.length
         });
-        
+
         return {
             ...totals,
             totalEarnedSalary: Math.round(totals.totalEarnedSalary * 100) / 100,
