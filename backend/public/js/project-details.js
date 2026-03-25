@@ -33,13 +33,13 @@ async function loadProjectDetails() {
     // Show loaders in financial cards sections
     const cardIds = [
         'capitalCard',
-        'operatingResultCard', 
+        'operatingResultCard',
         'generalExpensesCard',
         'netOperatingProfitCard',
         'netOpeningBalanceCard',
         'finalFinancialPositionCard'
     ];
-    
+
     cardIds.forEach(cardId => {
         const card = document.getElementById(cardId);
         if (card) {
@@ -142,8 +142,8 @@ async function displayDetailedFinancialCards() {
             const quantity = delivery.quantity || 0;
             const materialPrice = delivery.material_price_at_time || 0;
 
-            materialCosts += materialPrice * netQuantity;
-            contractorCosts += (delivery.contractor_charge_per_meter || 0) * netQuantity;
+            materialCosts += materialPrice * quantity;
+            contractorCosts += (delivery.contractor_charge_per_meter || 0) * quantity;
             totalRevenue += (delivery.price_per_meter || 0) * quantity;
             console.log(delivery.price_per_meter, delivery._id)
         });
@@ -598,7 +598,7 @@ async function loadCapitalInjections() {
     try {
         const data = await apiGet('/administration/capital-injections');
         const allInjections = data.capital_injections || data.capitalInjections || [];
-        
+
         // Find the matching project ID first
         let projectId = null;
         try {
@@ -611,13 +611,13 @@ async function loadCapitalInjections() {
         } catch (error) {
             console.error('Error finding matching project:', error);
         }
-        
+
         // Filter by Project ID (not Client ID)
         const injections = allInjections.filter(injection => {
             const injProjectId = injection.project_id?._id || injection.project_id;
             return projectId && String(injProjectId) === String(projectId);
         });
-        
+
         displayCapitalInjections(injections);
     } catch (error) {
         console.error('Error loading capital injections:', error);
@@ -651,7 +651,7 @@ async function loadWithdrawals() {
     try {
         const data = await apiGet('/administration/withdrawals');
         const allWithdrawals = data.withdrawals || [];
-        
+
         // Find the matching project ID first
         let projectId = null;
         try {
@@ -664,13 +664,13 @@ async function loadWithdrawals() {
         } catch (error) {
             console.error('Error finding matching project:', error);
         }
-        
+
         // Filter by Project ID (not Client ID)
         const withdrawals = allWithdrawals.filter(withdrawal => {
             const wProjectId = withdrawal.project_id?._id || withdrawal.project_id;
             return projectId && String(wProjectId) === String(projectId);
         });
-        
+
         displayWithdrawals(withdrawals);
     } catch (error) {
         console.error('Error loading withdrawals:', error);
