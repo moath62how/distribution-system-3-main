@@ -1,5 +1,6 @@
 const { Client, Delivery, Payment, Adjustment } = require('../models');
 const ClientProjectSyncService = require('./clientProjectSyncService');
+const CloudinaryService = require('./cloudinaryService');
 
 const toNumber = (v) => Number(v || 0);
 
@@ -77,12 +78,16 @@ class ClientService {
             .populate('contractor_id', 'name')
             .sort({ created_at: -1 });
 
-        const payments = await Payment.find({ client_id: id })
+        const payments = await Payment.find({ 
+            client_id: id,
+            is_deleted: { $ne: true }
+        })
             .sort({ paid_at: -1 });
 
         const adjustments = await Adjustment.find({
             entity_type: 'client',
-            entity_id: id
+            entity_id: id,
+            is_deleted: { $ne: true }
         }).sort({ created_at: -1 });
 
         // Calculate totals and material breakdown
@@ -127,7 +132,8 @@ class ClientService {
                 details: p.details,
                 note: p.note,
                 paid_at: p.paid_at,
-                payment_image: p.payment_image
+                payment_image_url: p.payment_image_url,
+                payment_image_thumbnail: p.payment_image_thumbnail
             })),
             adjustments: adjustments.map(a => ({
                 id: a._id,
@@ -141,6 +147,18 @@ class ClientService {
     }
 
     static async createClient(data) {
+        // Check if client with same name already exists
+        const existingClient = await Client.findOne({ 
+            name: data.name.trim(),
+            is_deleted: { $ne: true }
+        });
+
+        if (existingClient) {
+            const error = new Error('اسم العميل موجود بالفعل');
+            error.code = 11000;
+            throw error;
+        }
+
         const client = new Client({
             name: data.name,
             phone: data.phone,
@@ -314,7 +332,10 @@ class ClientService {
     }
 
     static async getClientPayments(clientId) {
-        return await Payment.find({ client_id: clientId }).sort({ paid_at: -1 });
+        return await Payment.find({ 
+            client_id: clientId,
+            is_deleted: { $ne: true }
+        }).sort({ paid_at: -1 });
     }
 
     static async addClientPayment(clientId, data) {
@@ -325,7 +346,9 @@ class ClientService {
             details: data.details,
             note: data.note,
             paid_at: data.paid_at,
-            payment_image: data.payment_image
+            payment_image_url: data.payment_image_url,
+            payment_image_public_id: data.payment_image_public_id,
+            payment_image_thumbnail: data.payment_image_thumbnail
         });
 
         await payment.save();
@@ -338,21 +361,39 @@ class ClientService {
             details: payment.details,
             note: payment.note,
             paid_at: payment.paid_at,
-            payment_image: payment.payment_image
+            payment_image_url: payment.payment_image_url,
+            payment_image_public_id: payment.payment_image_public_id,
+            payment_image_thumbnail: payment.payment_image_thumbnail
         };
     }
 
+    static async getPaymentById(clientId, paymentId) {
+        return await Payment.findOne({
+            _id: paymentId,
+            client_id: clientId,
+            is_deleted: { $ne: true }
+        });
+    }
+
     static async updateClientPayment(clientId, paymentId, data) {
+        const updateData = {
+            amount: toNumber(data.amount),
+            method: data.method,
+            details: data.details,
+            note: data.note,
+            paid_at: data.paid_at
+        };
+
+        // Only update image fields if provided
+        if (data.payment_image_url) {
+            updateData.payment_image_url = data.payment_image_url;
+            updateData.payment_image_public_id = data.payment_image_public_id;
+            updateData.payment_image_thumbnail = data.payment_image_thumbnail;
+        }
+
         const payment = await Payment.findOneAndUpdate(
             { _id: paymentId, client_id: clientId },
-            {
-                amount: toNumber(data.amount),
-                method: data.method,
-                details: data.details,
-                note: data.note,
-                paid_at: data.paid_at,
-                payment_image: data.payment_image
-            },
+            updateData,
             { new: true }
         );
 
@@ -368,21 +409,36 @@ class ClientService {
             details: payment.details,
             note: payment.note,
             paid_at: payment.paid_at,
-            payment_image: payment.payment_image
+            payment_image_url: payment.payment_image_url,
+            payment_image_public_id: payment.payment_image_public_id,
+            payment_image_thumbnail: payment.payment_image_thumbnail
         };
     }
 
     static async deleteClientPayment(clientId, paymentId) {
-        return await Payment.findOneAndDelete({
+        const payment = await Payment.findOne({
             _id: paymentId,
-            client_id: clientId
+            client_id: clientId,
+            is_deleted: { $ne: true }
         });
+
+        if (!payment) {
+            return null;
+        }
+
+        // Soft delete
+        payment.is_deleted = true;
+        payment.deleted_at = new Date();
+        await payment.save();
+
+        return payment;
     }
 
     static async getClientAdjustments(clientId) {
         return await Adjustment.find({
             entity_type: 'client',
-            entity_id: clientId
+            entity_id: clientId,
+            is_deleted: { $ne: true }
         }).sort({ created_at: -1 });
     }
 
@@ -435,11 +491,22 @@ class ClientService {
     }
 
     static async deleteClientAdjustment(clientId, adjustmentId) {
-        return await Adjustment.findOneAndDelete({
+        const adjustment = await Adjustment.findOne({
             _id: adjustmentId,
             entity_type: 'client',
             entity_id: clientId
         });
+
+        if (!adjustment) {
+            return null;
+        }
+
+        // Soft delete
+        adjustment.is_deleted = true;
+        adjustment.deleted_at = new Date();
+        await adjustment.save();
+
+        return adjustment;
     }
 
     static async getClientDeliveriesReport(clientId, options = {}) {
@@ -538,12 +605,18 @@ class ClientService {
         const sortOrder = order === 'desc' ? -1 : 1;
         const skip = (page - 1) * limit;
 
-        const payments = await Payment.find({ client_id: clientId })
+        const payments = await Payment.find({ 
+            client_id: clientId,
+            is_deleted: { $ne: true }
+        })
             .sort({ [sort]: sortOrder })
             .skip(skip)
             .limit(parseInt(limit));
 
-        const total = await Payment.countDocuments({ client_id: clientId });
+        const total = await Payment.countDocuments({ 
+            client_id: clientId,
+            is_deleted: { $ne: true }
+        });
 
         return {
             payments,

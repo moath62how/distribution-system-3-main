@@ -1,5 +1,6 @@
 const supplierService = require('../services/supplierService');
 const PDFService = require('../services/pdfServiceUltraFast');
+const CloudinaryService = require('../services/cloudinaryService');
 
 class SupplierController {
     // Get all suppliers
@@ -62,7 +63,27 @@ class SupplierController {
                 opening_balances
             });
 
+            // Send success response immediately
             res.status(201).json(supplier);
+
+            // Log audit event asynchronously
+            setImmediate(async () => {
+                try {
+                    const authService = require('../services/authService');
+                    await authService.logAuditEvent(
+                        req.user.id,
+                        'create',
+                        'Supplier',
+                        supplier.id,
+                        null,
+                        supplier,
+                        req,
+                        name.trim()
+                    );
+                } catch (auditError) {
+                    console.error('❌ Audit logging failed for supplier creation:', auditError.message);
+                }
+            });
         } catch (err) {
             if (err.code === 11000) {
                 return res.status(400).json({ message: 'اسم المورد موجود بالفعل' });
@@ -122,6 +143,19 @@ class SupplierController {
                 return res.status(404).json({ message: 'المورد غير موجود' });
             }
 
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'update',
+                'Supplier',
+                req.params.id,
+                null,
+                supplier.supplier,
+                req,
+                name.trim()
+            );
+
             res.json(supplier);
         } catch (err) {
             if (err.code === 11000) {
@@ -141,6 +175,25 @@ class SupplierController {
             }
 
             res.json({ message: 'تم حذف المورد بنجاح' });
+
+            // Log audit event asynchronously
+            setImmediate(async () => {
+                try {
+                    const authService = require('../services/authService');
+                    await authService.logAuditEvent(
+                        req.user?.id,
+                        'delete',
+                        'Supplier',
+                        req.params.id,
+                        supplier,
+                        null,
+                        req,
+                        supplier.name
+                    );
+                } catch (auditError) {
+                    console.error('❌ Audit logging failed for supplier deletion:', auditError.message);
+                }
+            });
         } catch (err) {
             if (err.message.includes('لا يمكن حذف المورد')) {
                 return res.status(400).json({ message: err.message });
@@ -249,14 +302,49 @@ class SupplierController {
                 return res.status(400).json({ message: 'مبلغ الدفع مطلوب ويجب أن يكون أكبر من صفر' });
             }
 
+            let imageData = null;
+            
+            if (payment_image) {
+                try {
+                    imageData = await CloudinaryService.uploadBase64Image(
+                        payment_image,
+                        `suppliers/${req.params.id}/payments`
+                    );
+                } catch (error) {
+                    console.error('Image upload failed:', error);
+                    return res.status(400).json({ 
+                        message: 'فشل رفع الصورة: ' + error.message 
+                    });
+                }
+            }
+
             const payment = await supplierService.addSupplierPayment(req.params.id, {
                 amount: parseFloat(amount),
                 method: method?.trim(),
                 details: details?.trim(),
                 note: note?.trim(),
-                payment_image,
+                payment_image_url: imageData?.url,
+                payment_image_public_id: imageData?.publicId,
+                payment_image_thumbnail: imageData?.thumbnailUrl,
                 paid_at: paid_at ? new Date(paid_at) : new Date()
             });
+
+            // Get supplier name for audit log
+            const supplier = await supplierService.getSupplierById(req.params.id);
+            const supplierName = supplier && supplier.supplier ? supplier.supplier.name : 'مورد';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'create',
+                'SupplierPayment',
+                payment.id || payment._id,
+                null,
+                payment,
+                req,
+                `دفعة من ${supplierName}`
+            );
 
             res.status(201).json(payment);
         } catch (err) {
@@ -273,22 +361,68 @@ class SupplierController {
                 return res.status(400).json({ message: 'مبلغ الدفع مطلوب ويجب أن يكون أكبر من صفر' });
             }
 
+            let imageData = null;
+            
+            if (payment_image) {
+                try {
+                    const oldPayment = await supplierService.getPaymentById(req.params.id, req.params.paymentId);
+                    
+                    imageData = await CloudinaryService.uploadBase64Image(
+                        payment_image,
+                        `suppliers/${req.params.id}/payments`
+                    );
+                    
+                    if (oldPayment && oldPayment.payment_image_public_id) {
+                        await CloudinaryService.deleteImage(oldPayment.payment_image_public_id);
+                    }
+                } catch (error) {
+                    console.error('Image upload failed:', error);
+                    return res.status(400).json({ 
+                        message: 'فشل رفع الصورة: ' + error.message 
+                    });
+                }
+            }
+
+            const updateData = {
+                amount: parseFloat(amount),
+                method: method?.trim(),
+                details: details?.trim(),
+                note: note?.trim(),
+                paid_at: paid_at ? new Date(paid_at) : undefined
+            };
+
+            if (imageData) {
+                updateData.payment_image_url = imageData.url;
+                updateData.payment_image_public_id = imageData.publicId;
+                updateData.payment_image_thumbnail = imageData.thumbnailUrl;
+            }
+
             const payment = await supplierService.updateSupplierPayment(
                 req.params.id,
                 req.params.paymentId,
-                {
-                    amount: parseFloat(amount),
-                    method: method?.trim(),
-                    details: details?.trim(),
-                    note: note?.trim(),
-                    payment_image,
-                    paid_at: paid_at ? new Date(paid_at) : undefined
-                }
+                updateData
             );
 
             if (!payment) {
                 return res.status(404).json({ message: 'الدفعة غير موجودة' });
             }
+
+            // Get supplier name for audit log
+            const supplier = await supplierService.getSupplierById(req.params.id);
+            const supplierName = supplier && supplier.supplier ? supplier.supplier.name : 'مورد';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'update',
+                'SupplierPayment',
+                req.params.paymentId,
+                null,
+                payment,
+                req,
+                `دفعة من ${supplierName}`
+            );
 
             res.json(payment);
         } catch (err) {
@@ -307,6 +441,23 @@ class SupplierController {
             if (!payment) {
                 return res.status(404).json({ message: 'الدفعة غير موجودة' });
             }
+
+            // Get supplier name for audit log
+            const supplier = await supplierService.getSupplierById(req.params.id);
+            const supplierName = supplier && supplier.supplier ? supplier.supplier.name : 'مورد';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'delete',
+                'SupplierPayment',
+                req.params.paymentId,
+                payment.toJSON(),
+                null,
+                req,
+                `دفعة من ${supplierName}`
+            );
 
             res.json({ message: 'تم حذف الدفعة بنجاح' });
         } catch (err) {
@@ -349,6 +500,23 @@ class SupplierController {
                 details: details?.trim() || ''
             });
 
+            // Get supplier name for audit log
+            const supplier = await supplierService.getSupplierById(req.params.id);
+            const supplierName = supplier && supplier.supplier ? supplier.supplier.name : 'مورد';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'create',
+                'Adjustment',
+                adjustment.id || adjustment._id,
+                null,
+                adjustment,
+                req,
+                `تسوية من ${supplierName}`
+            );
+
             res.status(201).json(adjustment);
         } catch (err) {
             next(err);
@@ -375,6 +543,23 @@ class SupplierController {
                 return res.status(404).json({ message: 'التسوية غير موجودة' });
             }
 
+            // Get supplier name for audit log
+            const supplier = await supplierService.getSupplierById(req.params.id);
+            const supplierName = supplier && supplier.supplier ? supplier.supplier.name : 'مورد';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'update',
+                'Adjustment',
+                req.params.adjustmentId,
+                null,
+                adjustment,
+                req,
+                `تسوية من ${supplierName}`
+            );
+
             res.json(adjustment);
         } catch (err) {
             next(err);
@@ -392,6 +577,23 @@ class SupplierController {
             if (!adjustment) {
                 return res.status(404).json({ message: 'التسوية غير موجودة' });
             }
+
+            // Get supplier name for audit log
+            const supplier = await supplierService.getSupplierById(req.params.id);
+            const supplierName = supplier && supplier.supplier ? supplier.supplier.name : 'مورد';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'delete',
+                'Adjustment',
+                req.params.adjustmentId,
+                adjustment,
+                null,
+                req,
+                `تسوية من ${supplierName}`
+            );
 
             res.json({ message: 'تم حذف التسوية بنجاح' });
         } catch (err) {

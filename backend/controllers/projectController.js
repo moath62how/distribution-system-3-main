@@ -27,6 +27,20 @@ class ProjectController {
     static async createProject(req, res) {
         try {
             const project = await projectService.createProject(req.body);
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'create',
+                'Project',
+                project.id || project._id,
+                null,
+                project,
+                req,
+                project.name || 'مشروع'
+            );
+
             res.status(201).json({ project });
         } catch (error) {
             console.error('Error creating project:', error);
@@ -40,6 +54,20 @@ class ProjectController {
             if (!project) {
                 return res.status(404).json({ error: 'المشروع غير موجود' });
             }
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'update',
+                'Project',
+                req.params.id,
+                null,
+                project,
+                req,
+                project.name || 'مشروع'
+            );
+
             res.json({ project });
         } catch (error) {
             console.error('Error updating project:', error);

@@ -106,7 +106,15 @@ async function showConfirmDialog(title, text, confirmText = 'نعم', cancelText
         cancelButtonColor: '#3085d6',
         confirmButtonText: confirmText,
         cancelButtonText: cancelText,
-        reverseButtons: true
+        reverseButtons: true,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showLoaderOnConfirm: true,
+        preConfirm: () => {
+            // Disable buttons to prevent double click
+            Swal.getConfirmButton().disabled = true;
+            Swal.getCancelButton().disabled = true;
+        }
     });
 
     return result.isConfirmed;
@@ -120,7 +128,7 @@ async function showConfirmDialog(title, text, confirmText = 'نعم', cancelText
  */
 async function showSuccessMessage(title, text, timer = 2000) {
     if (typeof Swal === 'undefined') {
-        alert(`${title}\n${text}`);
+        showAlert(`${title}\n${text}`);
         return;
     }
 
@@ -131,6 +139,40 @@ async function showSuccessMessage(title, text, timer = 2000) {
         timer: timer,
         showConfirmButton: timer === 0
     });
+}
+
+/**
+ * Show info/warning message using SweetAlert2 (replaces alert())
+ * @param {string} message - Message to display
+ * @param {string} icon - Icon type (info, warning, error, success)
+ */
+async function showAlert(message, icon = 'info') {
+    if (typeof Swal === 'undefined') {
+        alert(message);
+        return;
+    }
+
+    return Swal.fire({
+        icon: icon,
+        text: message,
+        confirmButtonText: 'حسناً'
+    });
+}
+
+/**
+ * Show warning message using SweetAlert2
+ * @param {string} message - Warning message
+ */
+async function showWarning(message) {
+    return showAlert(message, 'warning');
+}
+
+/**
+ * Show info message using SweetAlert2
+ * @param {string} message - Info message
+ */
+async function showInfo(message) {
+    return showAlert(message, 'info');
 }
 
 /**
@@ -199,3 +241,49 @@ window.clearMessage = clearMessage;
 window.showConfirmDialog = showConfirmDialog;
 window.showSuccessMessage = showSuccessMessage;
 window.showErrorMessage = showErrorMessage;
+window.showAlert = showAlert;
+window.showWarning = showWarning;
+window.showInfo = showInfo;
+
+/**
+ * Prevents double submission for a form by managing a submission flag
+ * @param {HTMLFormElement} form - The form element
+ * @param {Function} submitHandler - Async function to handle the actual submission
+ * @param {string} loadingText - Text to show on button while submitting (default: 'جاري المعالجة...')
+ */
+function preventDoubleSubmit(form, submitHandler, loadingText = 'جاري المعالجة...') {
+    let isSubmitting = false;
+    
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Prevent double submission
+        if (isSubmitting) {
+            console.log('Already submitting, please wait...');
+            return;
+        }
+        
+        isSubmitting = true;
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalButtonText = submitButton ? submitButton.textContent : 'حفظ';
+        
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.textContent = loadingText;
+        }
+        
+        try {
+            await submitHandler(e);
+        } finally {
+            // Always reset the flag and button state
+            isSubmitting = false;
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.textContent = originalButtonText;
+            }
+        }
+    });
+}
+
+// Export for global use
+window.preventDoubleSubmit = preventDoubleSubmit;

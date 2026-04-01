@@ -1,6 +1,7 @@
 const crusherService = require('../services/crusherService');
 const reportService = require('../services/reportService');
 const PDFService = require('../services/pdfServiceUltraFast');
+const CloudinaryService = require('../services/cloudinaryService');
 
 class CrushersController {
     // Get all crushers
@@ -47,8 +48,30 @@ class CrushersController {
                 opening_balances
             });
 
-            res.status(201).json(crusher);
+            // Send success response immediately
+            res.status(201).json({ crusher });
+
+            // Log audit event asynchronously (non-blocking)
+            setImmediate(async () => {
+                try {
+                    const authService = require('../services/authService');
+                    await authService.logAuditEvent(
+                        req.user?.id,
+                        'create',
+                        'Crusher',
+                        crusher.id || crusher._id,
+                        null,
+                        crusher,
+                        req,
+                        name.trim()
+                    );
+                } catch (auditError) {
+                    console.error('❌ Audit logging failed for crusher creation:', auditError.message);
+                }
+            });
+
         } catch (err) {
+            console.error('❌ Error in createCrusher:', err);
             if (err.code === 11000) {
                 return res.status(400).json({ message: 'اسم الكسارة موجود بالفعل' });
             }
@@ -84,7 +107,28 @@ class CrushersController {
                 return res.status(404).json({ message: 'الكسارة غير موجودة' });
             }
 
+            // Send success response FIRST
             res.json(crusher);
+
+            // Log audit event asynchronously
+            setImmediate(async () => {
+                try {
+                    const authService = require('../services/authService');
+                    await authService.logAuditEvent(
+                        req.user.id,
+                        'update',
+                        'Crusher',
+                        req.params.id,
+                        null,
+                        crusher.crusher,
+                        req,
+                        name.trim()
+                    );
+                } catch (auditError) {
+                    console.error('❌ Audit logging failed for crusher update:', auditError.message);
+                }
+            });
+
         } catch (err) {
             if (err.code === 11000) {
                 return res.status(400).json({ message: 'اسم الكسارة موجود بالفعل' });
@@ -129,6 +173,25 @@ class CrushersController {
             }
 
             res.json({ message: 'تم حذف الكسارة بنجاح' });
+
+            // Log audit event asynchronously
+            setImmediate(async () => {
+                try {
+                    const authService = require('../services/authService');
+                    await authService.logAuditEvent(
+                        req.user?.id,
+                        'delete',
+                        'Crusher',
+                        req.params.id,
+                        crusher,
+                        null,
+                        req,
+                        crusher.name
+                    );
+                } catch (auditError) {
+                    console.error('❌ Audit logging failed for crusher deletion:', auditError.message);
+                }
+            });
         } catch (err) {
             next(err);
         }
@@ -149,16 +212,57 @@ class CrushersController {
         try {
             const { amount, method, details, note, paid_at, payment_image } = req.body;
 
+            let imageData = null;
+            
+            if (payment_image) {
+                try {
+                    imageData = await CloudinaryService.uploadBase64Image(
+                        payment_image,
+                        `crushers/${req.params.id}/payments`
+                    );
+                } catch (error) {
+                    console.error('Image upload failed:', error);
+                    return res.status(400).json({ 
+                        message: 'فشل رفع الصورة: ' + error.message 
+                    });
+                }
+            }
+
             const payment = await crusherService.addCrusherPayment(req.params.id, {
                 amount,
                 method: method?.trim() || '',
                 details: details?.trim() || '',
                 note: note?.trim() || '',
                 paid_at: paid_at ? new Date(paid_at) : new Date(),
-                payment_image
+                payment_image_url: imageData?.url,
+                payment_image_public_id: imageData?.publicId,
+                payment_image_thumbnail: imageData?.thumbnailUrl
             });
 
             res.status(201).json(payment);
+
+            // Log audit event asynchronously
+            setImmediate(async () => {
+                try {
+                    // Get crusher name for audit log
+                    const crusher = await crusherService.getCrusherById(req.params.id);
+                    const crusherName = crusher && crusher.crusher ? crusher.crusher.name : 'كسارة';
+
+                    const authService = require('../services/authService');
+                    await authService.logAuditEvent(
+                        req.user.id,
+                        'create',
+                        'CrusherPayment',
+                        payment.id || payment._id,
+                        null,
+                        payment,
+                        req,
+                        `دفعة من ${crusherName}`
+                    );
+                } catch (auditError) {
+                    console.error('❌ Audit logging failed for crusher payment:', auditError.message);
+                }
+            });
         } catch (err) {
             next(err);
         }
@@ -169,17 +273,46 @@ class CrushersController {
         try {
             const { amount, method, details, note, paid_at, payment_image } = req.body;
 
+            let imageData = null;
+            
+            if (payment_image) {
+                try {
+                    const oldPayment = await crusherService.getPaymentById(req.params.id, req.params.paymentId);
+                    
+                    imageData = await CloudinaryService.uploadBase64Image(
+                        payment_image,
+                        `crushers/${req.params.id}/payments`
+                    );
+                    
+                    if (oldPayment && oldPayment.payment_image_public_id) {
+                        await CloudinaryService.deleteImage(oldPayment.payment_image_public_id);
+                    }
+                } catch (error) {
+                    console.error('Image upload failed:', error);
+                    return res.status(400).json({ 
+                        message: 'فشل رفع الصورة: ' + error.message 
+                    });
+                }
+            }
+
+            const updateData = {
+                amount,
+                method: method?.trim() || '',
+                details: details?.trim() || '',
+                note: note?.trim() || '',
+                paid_at: paid_at ? new Date(paid_at) : new Date()
+            };
+
+            if (imageData) {
+                updateData.payment_image_url = imageData.url;
+                updateData.payment_image_public_id = imageData.publicId;
+                updateData.payment_image_thumbnail = imageData.thumbnailUrl;
+            }
+
             const payment = await crusherService.updateCrusherPayment(
                 req.params.id,
                 req.params.paymentId,
-                {
-                    amount,
-                    method: method?.trim() || '',
-                    details: details?.trim() || '',
-                    note: note?.trim() || '',
-                    paid_at: paid_at ? new Date(paid_at) : new Date(),
-                    payment_image
-                }
+                updateData
             );
 
             if (!payment) {
@@ -187,6 +320,29 @@ class CrushersController {
             }
 
             res.json(payment);
+
+            // Log audit event asynchronously
+            setImmediate(async () => {
+                try {
+                    // Get crusher name for audit log
+                    const crusher = await crusherService.getCrusherById(req.params.id);
+                    const crusherName = crusher && crusher.crusher ? crusher.crusher.name : 'كسارة';
+
+                    const authService = require('../services/authService');
+                    await authService.logAuditEvent(
+                        req.user.id,
+                        'update',
+                        'CrusherPayment',
+                        req.params.paymentId,
+                        null,
+                        payment,
+                        req,
+                        `دفعة من ${crusherName}`
+                    );
+                } catch (auditError) {
+                    console.error('❌ Audit logging failed for crusher payment update:', auditError.message);
+                }
+            });
         } catch (err) {
             next(err);
         }
@@ -205,6 +361,29 @@ class CrushersController {
             }
 
             res.json({ message: 'تم حذف الدفعة بنجاح' });
+
+            // Log audit event asynchronously
+            setImmediate(async () => {
+                try {
+                    // Get crusher name for audit log
+                    const crusher = await crusherService.getCrusherById(req.params.id);
+                    const crusherName = crusher && crusher.crusher ? crusher.crusher.name : 'كسارة';
+
+                    const authService = require('../services/authService');
+                    await authService.logAuditEvent(
+                        req.user.id,
+                        'delete',
+                        'CrusherPayment',
+                        req.params.paymentId,
+                        payment.toJSON(),
+                        null,
+                        req,
+                        `دفعة من ${crusherName}`
+                    );
+                } catch (auditError) {
+                    console.error('❌ Audit logging failed for crusher payment deletion:', auditError.message);
+                }
+            });
         } catch (err) {
             next(err);
         }
@@ -233,6 +412,29 @@ class CrushersController {
             });
 
             res.status(201).json(adjustment);
+
+            // Log audit event asynchronously
+            setImmediate(async () => {
+                try {
+                    // Get crusher name for audit log
+                    const crusher = await crusherService.getCrusherById(req.params.id);
+                    const crusherName = crusher && crusher.crusher ? crusher.crusher.name : 'كسارة';
+
+                    const authService = require('../services/authService');
+                    await authService.logAuditEvent(
+                        req.user.id,
+                        'create',
+                        'Adjustment',
+                        adjustment.id || adjustment._id,
+                        null,
+                        adjustment,
+                        req,
+                        `تسوية من ${crusherName}`
+                    );
+                } catch (auditError) {
+                    console.error('❌ Audit logging failed for crusher adjustment:', auditError.message);
+                }
+            });
         } catch (err) {
             next(err);
         }
@@ -259,6 +461,29 @@ class CrushersController {
             }
 
             res.json(adjustment);
+
+            // Log audit event asynchronously
+            setImmediate(async () => {
+                try {
+                    // Get crusher name for audit log
+                    const crusher = await crusherService.getCrusherById(req.params.id);
+                    const crusherName = crusher && crusher.crusher ? crusher.crusher.name : 'كسارة';
+
+                    const authService = require('../services/authService');
+                    await authService.logAuditEvent(
+                        req.user.id,
+                        'update',
+                        'Adjustment',
+                        req.params.adjustmentId,
+                        null,
+                        adjustment,
+                        req,
+                        `تسوية من ${crusherName}`
+                    );
+                } catch (auditError) {
+                    console.error('❌ Audit logging failed for crusher adjustment update:', auditError.message);
+                }
+            });
         } catch (err) {
             next(err);
         }
@@ -277,6 +502,29 @@ class CrushersController {
             }
 
             res.json({ message: 'تم حذف التسوية بنجاح' });
+
+            // Log audit event asynchronously
+            setImmediate(async () => {
+                try {
+                    // Get crusher name for audit log
+                    const crusher = await crusherService.getCrusherById(req.params.id);
+                    const crusherName = crusher && crusher.crusher ? crusher.crusher.name : 'كسارة';
+
+                    const authService = require('../services/authService');
+                    await authService.logAuditEvent(
+                        req.user.id,
+                        'delete',
+                        'Adjustment',
+                        req.params.adjustmentId,
+                        adjustment,
+                        null,
+                        req,
+                        `تسوية من ${crusherName}`
+                    );
+                } catch (auditError) {
+                    console.error('❌ Audit logging failed for crusher adjustment deletion:', auditError.message);
+                }
+            });
         } catch (err) {
             next(err);
         }

@@ -1,11 +1,12 @@
 const { Employee, EmployeePayment, Adjustment, Attendance } = require('../models');
 const PayrollService = require('./payrollService');
+const CloudinaryService = require('./cloudinaryService');
 
 const toNumber = (v) => Number(v || 0);
 
 class EmployeeService {
     static async getAllEmployees() {
-        const employees = await Employee.find().sort({ name: 1 });
+        const employees = await Employee.find({ is_deleted: { $ne: true } }).sort({ name: 1 });
 
         // Calculate totals for each employee using payroll service
         const result = await Promise.all(
@@ -78,12 +79,15 @@ class EmployeeService {
 
         // Get related data
         console.time("payments_query");
-        const payments = await EmployeePayment.find({ employee_id: id })
-            .sort({ paid_at: -1 });
+        const payments = await EmployeePayment.find({ 
+            employee_id: id,
+            is_deleted: { $ne: true }
+        }).sort({ paid_at: -1 });
         console.timeEnd("payments_query");
         const adjustments = await Adjustment.find({
             entity_type: 'employee',
-            entity_id: id
+            entity_id: id,
+            is_deleted: { $ne: true }
         }).sort({ created_at: -1 });
         const attendance = await Attendance.find({ employee_id: id })
             .sort({ period_start: -1 });
@@ -113,7 +117,8 @@ class EmployeeService {
                 method: p.method,
                 details: p.details,
                 note: p.note,
-                payment_image: p.payment_image,
+                payment_image_url: p.payment_image_url,
+                payment_image_thumbnail: p.payment_image_thumbnail,
                 paid_at: p.paid_at,
                 created_at: p.created_at
             })),
@@ -154,6 +159,18 @@ class EmployeeService {
     }
 
     static async createEmployee(data) {
+        // Check if employee with same name already exists
+        const existingEmployee = await Employee.findOne({ 
+            name: data.name.trim(),
+            is_deleted: { $ne: true }
+        });
+
+        if (existingEmployee) {
+            const error = new Error('اسم الموظف موجود بالفعل');
+            error.code = 11000;
+            throw error;
+        }
+
         // Remove opening_balance if provided (not used in new system)
         const { opening_balance, ...employeeData } = data;
 
@@ -209,16 +226,17 @@ class EmployeeService {
     }
 
     static async deleteEmployee(id) {
-        // Check if employee has related records
-        const paymentsCount = await EmployeePayment.countDocuments({ employee_id: id });
-        const adjustmentsCount = await Adjustment.countDocuments({ entity_type: 'employee', entity_id: id });
-        const attendanceCount = await Attendance.countDocuments({ employee_id: id });
-
-        if (paymentsCount > 0 || adjustmentsCount > 0 || attendanceCount > 0) {
-            throw new Error('لا يمكن حذف الموظف لوجود سجلات مرتبطة به');
+        const employee = await Employee.findById(id);
+        
+        if (!employee) {
+            return null;
         }
 
-        const employee = await Employee.findByIdAndDelete(id);
+        // Soft delete
+        employee.is_deleted = true;
+        employee.deleted_at = new Date();
+        await employee.save();
+
         return employee;
     }
 
@@ -226,26 +244,65 @@ class EmployeeService {
     static async addEmployeePayment(employeeId, paymentData) {
         const payment = new EmployeePayment({
             employee_id: employeeId,
-            ...paymentData
+            amount: toNumber(paymentData.amount),
+            method: paymentData.method,
+            details: paymentData.details,
+            note: paymentData.note,
+            paid_at: paymentData.paid_at,
+            payment_image_url: paymentData.payment_image_url,
+            payment_image_public_id: paymentData.payment_image_public_id,
+            payment_image_thumbnail: paymentData.payment_image_thumbnail
         });
         await payment.save();
         return payment;
     }
 
+    static async getPaymentById(employeeId, paymentId) {
+        return await EmployeePayment.findOne({
+            _id: paymentId,
+            employee_id: employeeId
+        });
+    }
+
     static async updateEmployeePayment(employeeId, paymentId, paymentData) {
+        const updateData = {
+            amount: toNumber(paymentData.amount),
+            method: paymentData.method,
+            details: paymentData.details,
+            note: paymentData.note,
+            paid_at: paymentData.paid_at
+        };
+
+        if (paymentData.payment_image_url) {
+            updateData.payment_image_url = paymentData.payment_image_url;
+            updateData.payment_image_public_id = paymentData.payment_image_public_id;
+            updateData.payment_image_thumbnail = paymentData.payment_image_thumbnail;
+        }
+
         const payment = await EmployeePayment.findOneAndUpdate(
             { _id: paymentId, employee_id: employeeId },
-            paymentData,
+            updateData,
             { new: true }
         );
         return payment;
     }
 
     static async deleteEmployeePayment(employeeId, paymentId) {
-        const payment = await EmployeePayment.findOneAndDelete({
+        const payment = await EmployeePayment.findOne({
             _id: paymentId,
-            employee_id: employeeId
+            employee_id: employeeId,
+            is_deleted: { $ne: true }
         });
+
+        if (!payment) {
+            return null;
+        }
+
+        // Soft delete
+        payment.is_deleted = true;
+        payment.deleted_at = new Date();
+        await payment.save();
+
         return payment;
     }
 

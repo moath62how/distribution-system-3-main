@@ -998,13 +998,18 @@ function renderRecentActivity(clients, contractors, crushers, employees, adminis
     // Add recent clients (those with recent activity)
     if (!apiErrors.clients && clients && clients.length > 0) {
         clients.slice(0, 3).forEach(client => {
+            const balance = client.balance || 0;
+            const amountClass = balance > 0 ? 'positive' : balance < 0 ? 'negative' : '';
+            
             activities.push({
                 type: 'client',
-                title: `عميل: ${client.name}`,
-                description: `الرصيد: ${formatCurrency(client.balance)}`,
+                title: client.name,
+                description: 'تحديث رصيد العميل',
                 time: formatDate(client.created_at),
+                amount: formatCurrency(Math.abs(balance)),
+                amountClass: amountClass,
                 icon: '<i class="fas fa-user"></i>',
-                iconBg: client.balance > 0 ? 'var(--success-100)' : client.balance < 0 ? 'var(--danger-100)' : 'var(--gray-100)'
+                iconBg: balance > 0 ? 'var(--success-100)' : balance < 0 ? 'var(--danger-100)' : 'var(--gray-100)'
             });
         });
     }
@@ -1012,11 +1017,16 @@ function renderRecentActivity(clients, contractors, crushers, employees, adminis
     // Add recent contractors
     if (!apiErrors.contractors && contractors && contractors.length > 0) {
         contractors.slice(0, 2).forEach(contractor => {
+            const balance = contractor.balance || 0;
+            const amountClass = balance > 0 ? 'negative' : 'positive'; // Inverted for contractors
+            
             activities.push({
                 type: 'contractor',
-                title: `مقاول: ${contractor.name}`,
-                description: `الرصيد: ${formatCurrency(contractor.balance)}`,
+                title: contractor.name,
+                description: 'مستحقات نقل جديدة',
                 time: formatDate(contractor.created_at),
+                amount: formatCurrency(Math.abs(balance)),
+                amountClass: amountClass,
                 icon: '<i class="fas fa-truck"></i>',
                 iconBg: contractor.balance > 0 ? 'var(--warning-100)' : 'var(--success-100)'
             });
@@ -1026,11 +1036,16 @@ function renderRecentActivity(clients, contractors, crushers, employees, adminis
     // Add recent crushers
     if (!apiErrors.crushers && crushers && crushers.length > 0) {
         crushers.slice(0, 2).forEach(crusher => {
+            const net = crusher.net || 0;
+            const amountClass = net > 0 ? 'positive' : net < 0 ? 'negative' : '';
+            
             activities.push({
                 type: 'crusher',
-                title: `كسارة: ${crusher.name}`,
-                description: `الصافي: ${formatCurrency(crusher.net || 0)}`,
+                title: crusher.name,
+                description: 'تسليمات كسارة جديدة',
                 time: formatDate(crusher.created_at),
+                amount: formatCurrency(Math.abs(net)),
+                amountClass: amountClass,
                 icon: '<i class="fas fa-industry"></i>',
                 iconBg: 'var(--primary-100)'
             });
@@ -1049,8 +1064,9 @@ function renderRecentActivity(clients, contractors, crushers, employees, adminis
             </div>
             <div class="activity-content">
                 <div class="activity-title">${activity.title}</div>
-                <div class="activity-time">${activity.description}${activity.time ? ' • ' + activity.time : ''}</div>
+                <div class="activity-time">${activity.time ? activity.time : ''}</div>
             </div>
+            ${activity.amount ? `<div class="activity-amount ${activity.amountClass || ''}">${activity.amount}</div>` : ''}
         </div>
     `).join('');
 }

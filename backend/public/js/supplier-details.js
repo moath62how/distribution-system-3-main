@@ -229,9 +229,9 @@ function renderPayments(payments) {
 
         // Image cell
         const imageCell = document.createElement('td');
-        if (payment.payment_image) {
+        if (payment.payment_image_url) {
             imageCell.innerHTML = `
-                <button class="btn btn-sm btn-secondary" data-image="${payment.payment_image}" onclick="showImageModal(this.getAttribute('data-image'))" title="عرض الصورة">
+                <button class="btn btn-sm btn-secondary" data-image="${payment.payment_image_url}" onclick="showImageModal(this.getAttribute('data-image'))" title="عرض الصورة">
                     <i class="fas fa-image"></i> عرض
                 </button>
             `;
@@ -319,9 +319,9 @@ function renderAdjustments(adjustments) {
 
         // Image cell
         const imageCell = document.createElement('td');
-        if (adjustment.payment_image) {
+        if (adjustment.payment_image_url) {
             imageCell.innerHTML = `
-                <button class="btn btn-sm btn-secondary" data-image="${adjustment.payment_image}" onclick="showImageModal(this.getAttribute('data-image'))" title="عرض الصورة">
+                <button class="btn btn-sm btn-secondary" data-image="${adjustment.payment_image_url}" onclick="showImageModal(this.getAttribute('data-image'))" title="عرض الصورة">
                     <i class="fas fa-image"></i> عرض
                 </button>
             `;
@@ -458,7 +458,7 @@ async function editMaterial(materialId) {
         // Find material in current data
         const material = supplierData.supplier.materials.find(m => m.id === materialId);
         if (!material) {
-            alert('لم يتم العثور على المادة');
+            showAlert('لم يتم العثور على المادة');
             return;
         }
 
@@ -476,7 +476,7 @@ async function editMaterial(materialId) {
         showModal('addMaterialModal');
     } catch (error) {
         console.error('Error editing material:', error);
-        alert('حدث خطأ في تحميل بيانات المادة');
+        showAlert('حدث خطأ في تحميل بيانات المادة');
     }
 }
 
@@ -502,7 +502,14 @@ async function updateMaterial(materialId, materialData) {
 }
 
 async function deleteMaterial(materialId) {
-    if (!confirm('هل أنت متأكد من حذف هذه المادة؟ سيتم حذف جميع التسليمات المرتبطة بها.')) {
+    const confirmed = await showConfirmDialog(
+        'تأكيد الحذف',
+        'هل أنت متأكد من حذف هذه المادة؟ سيتم حذف جميع التسليمات المرتبطة بها.',
+        'نعم، احذف',
+        'إلغاء'
+    );
+    
+    if (!confirmed) {
         return;
     }
 
@@ -517,11 +524,11 @@ async function deleteMaterial(materialId) {
             throw new Error(error.message || 'فشل في حذف المادة');
         }
 
-        alert('تم حذف المادة بنجاح');
+        showAlert('تم حذف المادة بنجاح');
         loadSupplierDetails(); // Reload data
     } catch (error) {
         console.error('Error deleting material:', error);
-        alert('حدث خطأ في حذف المادة: ' + error.message);
+        showAlert('حدث خطأ في حذف المادة: ' + error.message);
     }
 }
 
@@ -540,7 +547,7 @@ async function editPayment(paymentId) {
         // Find payment in current data
         const payment = allPayments.find(p => p.id === paymentId);
         if (!payment) {
-            alert('لم يتم العثور على الدفعة');
+            showAlert('لم يتم العثور على الدفعة');
             return;
         }
 
@@ -565,12 +572,19 @@ async function editPayment(paymentId) {
         showModal('addPaymentModal');
     } catch (error) {
         console.error('Error editing payment:', error);
-        alert('حدث خطأ في تحميل بيانات الدفعة');
+        showAlert('حدث خطأ في تحميل بيانات الدفعة');
     }
 }
 
 async function deletePayment(paymentId) {
-    if (!confirm('هل أنت متأكد من حذف هذه الدفعة؟')) {
+    const confirmed = await showConfirmDialog(
+        'تأكيد الحذف',
+        'هل أنت متأكد من حذف هذه الدفعة؟',
+        'نعم، احذف',
+        'إلغاء'
+    );
+    
+    if (!confirmed) {
         return;
     }
 
@@ -584,11 +598,11 @@ async function deletePayment(paymentId) {
             throw new Error('فشل في حذف الدفعة');
         }
 
-        alert('تم حذف الدفعة بنجاح');
+        showAlert('تم حذف الدفعة بنجاح');
         loadSupplierDetails(); // Reload data
     } catch (error) {
         console.error('Error deleting payment:', error);
-        alert('حدث خطأ في حذف الدفعة');
+        showAlert('حدث خطأ في حذف الدفعة');
     }
 }
 
@@ -598,7 +612,7 @@ async function showAdjustmentDetails(adjustmentId) {
         // Find adjustment in current data
         const adjustment = allAdjustments.find(a => a.id === adjustmentId);
         if (!adjustment) {
-            alert('لم يتم العثور على التسوية');
+            showAlert('لم يتم العثور على التسوية');
             return;
         }
 
@@ -632,12 +646,12 @@ async function showAdjustmentDetails(adjustmentId) {
         `;
 
         // Add image if exists
-        if (adjustment.payment_image) {
+        if (adjustment.payment_image_url) {
             detailsHTML += `
                 <div class="detail-row">
                     <strong>الصورة:</strong>
                     <div>
-                        <button class="btn btn-sm btn-secondary" onclick="showImageModal('${adjustment.payment_image}')" style="margin-top: 5px;">
+                        <button class="btn btn-sm btn-secondary" onclick="showImageModal('${adjustment.payment_image_url}')" style="margin-top: 5px;">
                             <i class="fas fa-image"></i> عرض الصورة
                         </button>
                     </div>
@@ -654,7 +668,7 @@ async function showAdjustmentDetails(adjustmentId) {
         showModal('adjustmentDetailsModal');
     } catch (error) {
         console.error('Error viewing adjustment:', error);
-        alert('حدث خطأ في عرض تفاصيل التسوية');
+        showAlert('حدث خطأ في عرض تفاصيل التسوية');
     }
 }
 
@@ -664,7 +678,7 @@ async function showPaymentDetails(paymentId) {
         // Find payment in current data
         const payment = allPayments.find(p => p.id === paymentId);
         if (!payment) {
-            alert('لم يتم العثور على الدفعة');
+            showAlert('لم يتم العثور على الدفعة');
             return;
         }
 
@@ -706,12 +720,12 @@ async function showPaymentDetails(paymentId) {
         }
 
         // Add image if exists
-        if (payment.payment_image) {
+        if (payment.payment_image_url) {
             detailsHTML += `
                 <div class="detail-row">
                     <strong>الصورة:</strong>
                     <div>
-                        <button class="btn btn-sm btn-secondary" onclick="showImageModal('${payment.payment_image}')" style="margin-top: 5px;">
+                        <button class="btn btn-sm btn-secondary" onclick="showImageModal('${payment.payment_image_url}')" style="margin-top: 5px;">
                             <i class="fas fa-image"></i> عرض الصورة
                         </button>
                     </div>
@@ -728,7 +742,7 @@ async function showPaymentDetails(paymentId) {
         showModal('paymentDetailsModal');
     } catch (error) {
         console.error('Error viewing payment:', error);
-        alert('حدث خطأ في عرض تفاصيل الدفعة');
+        showAlert('حدث خطأ في عرض تفاصيل الدفعة');
     }
 }
 
@@ -737,7 +751,7 @@ async function editAdjustment(adjustmentId) {
         // Find adjustment in current data
         const adjustment = allAdjustments.find(a => a.id === adjustmentId);
         if (!adjustment) {
-            alert('لم يتم العثور على التسوية');
+            showAlert('لم يتم العثور على التسوية');
             return;
         }
 
@@ -759,12 +773,19 @@ async function editAdjustment(adjustmentId) {
         showModal('adjustmentModal');
     } catch (error) {
         console.error('Error editing adjustment:', error);
-        alert('حدث خطأ في تحميل بيانات التسوية');
+        showAlert('حدث خطأ في تحميل بيانات التسوية');
     }
 }
 
 async function deleteAdjustment(adjustmentId) {
-    if (!confirm('هل أنت متأكد من حذف هذه التسوية؟')) {
+    const confirmed = await showConfirmDialog(
+        'تأكيد الحذف',
+        'هل أنت متأكد من حذف هذه التسوية؟',
+        'نعم، احذف',
+        'إلغاء'
+    );
+    
+    if (!confirmed) {
         return;
     }
 
@@ -778,11 +799,11 @@ async function deleteAdjustment(adjustmentId) {
             throw new Error('فشل في حذف التسوية');
         }
 
-        alert('تم حذف التسوية بنجاح');
+        showAlert('تم حذف التسوية بنجاح');
         loadSupplierDetails(); // Reload data
     } catch (error) {
         console.error('Error deleting adjustment:', error);
-        alert('حدث خطأ في حذف التسوية');
+        showAlert('حدث خطأ في حذف التسوية');
     }
 }
 
@@ -922,18 +943,18 @@ function setupEventHandlers() {
             if (editId) {
                 // Update existing material
                 await updateMaterial(editId, materialData);
-                alert('تم تحديث المادة بنجاح');
+                showAlert('تم تحديث المادة بنجاح');
             } else {
                 // Add new material
                 await addMaterial(materialData);
-                alert('تم إضافة المادة بنجاح');
+                showAlert('تم إضافة المادة بنجاح');
             }
 
             closeModal('addMaterialModal');
             resetMaterialForm();
             loadSupplierDetails();
         } catch (error) {
-            alert('خطأ: ' + error.message);
+            showAlert('خطأ: ' + error.message);
         }
     });
 
@@ -986,7 +1007,7 @@ function setupEventHandlers() {
             }
 
             if (response.ok) {
-                alert(editId ? 'تم تحديث الدفعة بنجاح' : 'تم إضافة الدفعة بنجاح');
+                showSuccessMessage('نجح!', editId ? 'تم تحديث الدفعة بنجاح' : 'تم إضافة الدفعة بنجاح', 2000);
                 closeModal('addPaymentModal');
                 document.getElementById('addPaymentForm').reset();
                 delete form.dataset.editId;
@@ -997,7 +1018,7 @@ function setupEventHandlers() {
             }
         } catch (error) {
             console.error('Payment error:', error);
-            alert('خطأ: ' + error.message);
+            showAlert('خطأ: ' + error.message);
         }
     });
 
@@ -1017,18 +1038,18 @@ function setupEventHandlers() {
 
         // Validate - amount can be 0, negative, or positive
         if (amountInput === '' || amountInput === null || amountInput === undefined) {
-            alert('يرجى إدخال المبلغ');
+            showAlert('يرجى إدخال المبلغ');
             return;
         }
 
         if (!reason) {
-            alert('يرجى إدخال السبب');
+            showAlert('يرجى إدخال السبب');
             return;
         }
 
         const amount = parseFloat(amountInput);
         if (isNaN(amount)) {
-            alert('المبلغ غير صحيح');
+            showAlert('المبلغ غير صحيح');
             return;
         }
 
@@ -1058,7 +1079,7 @@ function setupEventHandlers() {
             }
 
             if (response.ok) {
-                alert(editId ? 'تم تحديث التسوية بنجاح' : 'تم إضافة التسوية بنجاح');
+                showSuccessMessage('نجح!', editId ? 'تم تحديث التسوية بنجاح' : 'تم إضافة التسوية بنجاح', 2000);
                 closeModal('adjustmentModal');
                 document.getElementById('adjustmentForm').reset();
                 delete form.dataset.editId;
@@ -1069,7 +1090,7 @@ function setupEventHandlers() {
             }
         } catch (error) {
             console.error('Adjustment error:', error);
-            alert('خطأ: ' + error.message);
+            showAlert('خطأ: ' + error.message);
         }
     });
 
@@ -1115,7 +1136,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Get supplier ID from URL
     const supplierId = getSupplierIdFromURL();
     if (!supplierId) {
-        alert('معرف المورد غير صحيح');
+        showAlert('معرف المورد غير صحيح');
         window.location.href = 'suppliers.html';
         return;
     }
@@ -1201,7 +1222,7 @@ window.showImageModal = function (imageData) {
     const modalImage = document.getElementById('modalImage');
 
     if (!imageData || imageData === 'null' || imageData === 'undefined' || imageData.trim() === '') {
-        alert('لا توجد صورة لعرضها');
+        showAlert('لا توجد صورة لعرضها');
         return;
     }
 
@@ -1209,7 +1230,7 @@ window.showImageModal = function (imageData) {
     modalImage.onload = null;
 
     modalImage.onerror = function () {
-        alert('فشل في تحميل الصورة - البيانات قد تكون تالفة أو كبيرة جداً');
+        showAlert('فشل في تحميل الصورة - البيانات قد تكون تالفة أو كبيرة جداً');
         closeModal('imageModal');
     };
 
@@ -1244,7 +1265,7 @@ window.showImageModal = function (imageData) {
 
     } catch (error) {
         console.error('Error processing image data:', error);
-        alert('خطأ في معالجة بيانات الصورة: ' + error.message);
+        showAlert('خطأ في معالجة بيانات الصورة: ' + error.message);
     }
 };
 
@@ -1255,7 +1276,7 @@ window.generateDeliveriesReport = async function () {
     const toDate = document.getElementById('deliveriesToDate').value;
 
     if (!fromDate || !toDate) {
-        alert('يرجى تحديد تاريخ البداية والنهاية');
+        showAlert('يرجى تحديد تاريخ البداية والنهاية');
         return;
     }
 
@@ -1268,7 +1289,7 @@ window.generateDeliveriesReport = async function () {
 
     } catch (error) {
         console.error('Error generating deliveries report:', error);
-        alert('حدث خطأ في إنشاء التقرير');
+        showAlert('حدث خطأ في إنشاء التقرير');
     }
 };
 
@@ -1283,7 +1304,7 @@ window.generateAccountStatement = async function () {
         const toDate = document.getElementById('statementToDate').value;
 
         if (!fromDate || !toDate) {
-            alert('يرجى تحديد تاريخ البداية والنهاية');
+            showAlert('يرجى تحديد تاريخ البداية والنهاية');
             return;
         }
 
@@ -1296,7 +1317,7 @@ window.generateAccountStatement = async function () {
 
     } catch (error) {
         console.error('Error generating account statement:', error);
-        alert('حدث خطأ في إنشاء كشف الحساب');
+        showAlert('حدث خطأ في إنشاء كشف الحساب');
     }
 };
 
@@ -1370,11 +1391,11 @@ function addEditSupplierOpeningBalanceRow(existingData = null) {
     const projectCol = document.createElement('div');
     const projectLabel = document.createElement('label');
     projectLabel.style.cssText = 'display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: 500;';
-    projectLabel.textContent = 'المشروع';
+    projectLabel.textContent = 'في حساب (المشروع/العميل)';
     const projectSelect = document.createElement('select');
     projectSelect.className = 'form-input supplier-opening-balance-project';
     projectSelect.required = true;
-    projectSelect.innerHTML = '<option value="">اختر المشروع</option>';
+    projectSelect.innerHTML = '<option value="">اختر المشروع/العميل</option>';
     
     editSupplierProjectsList.forEach(project => {
         const option = document.createElement('option');
@@ -1404,6 +1425,11 @@ function addEditSupplierOpeningBalanceRow(existingData = null) {
         amountInput.value = existingData.amount || 0;
     }
     
+    // Add help text
+    const amountHelp = document.createElement('small');
+    amountHelp.style.cssText = 'display: block; margin-top: 5px; font-size: 0.75rem; color: var(--gray-600);';
+    amountHelp.textContent = 'موجب = نحن مدينون لهم | سالب = هم مدينون لنا';
+    
     // Add event listener to show/hide project field based on amount
     amountInput.addEventListener('input', () => {
         const amount = parseFloat(amountInput.value) || 0;
@@ -1411,23 +1437,42 @@ function addEditSupplierOpeningBalanceRow(existingData = null) {
             // Positive: we owe them, must select project
             projectCol.style.display = 'block';
             projectSelect.required = true;
-        } else {
-            // Negative or zero: they owe us, no project needed
+            amountHelp.style.color = 'var(--danger)';
+            amountHelp.textContent = '⚠️ يجب تحديد المشروع/العميل للرصيد الموجب';
+        } else if (amount < 0) {
+            // Negative: they owe us, no project needed
             projectCol.style.display = 'none';
             projectSelect.required = false;
             projectSelect.value = '';  // Clear selection
+            amountHelp.style.color = 'var(--success)';
+            amountHelp.textContent = '✓ رصيد سالب (هم مدينون لنا) - لا يحتاج مشروع';
+        } else {
+            projectCol.style.display = 'none';
+            projectSelect.required = false;
+            projectSelect.value = '';
+            amountHelp.style.color = 'var(--gray-600)';
+            amountHelp.textContent = 'موجب = نحن مدينون لهم | سالب = هم مدينون لنا';
         }
     });
     
     // Initial state based on existing amount
     const initialAmount = parseFloat(amountInput.value) || 0;
-    if (initialAmount <= 0) {
+    if (initialAmount > 0) {
+        amountHelp.style.color = 'var(--danger)';
+        amountHelp.textContent = '⚠️ يجب تحديد المشروع/العميل للرصيد الموجب';
+    } else if (initialAmount < 0) {
+        projectCol.style.display = 'none';
+        projectSelect.required = false;
+        amountHelp.style.color = 'var(--success)';
+        amountHelp.textContent = '✓ رصيد سالب (هم مدينون لنا) - لا يحتاج مشروع';
+    } else {
         projectCol.style.display = 'none';
         projectSelect.required = false;
     }
     
     amountCol.appendChild(amountLabel);
     amountCol.appendChild(amountInput);
+    amountCol.appendChild(amountHelp);
     
     // Description column
     const descCol = document.createElement('div');
@@ -1451,7 +1496,7 @@ function addEditSupplierOpeningBalanceRow(existingData = null) {
     const deleteBtn = document.createElement('button');
     deleteBtn.type = 'button';
     deleteBtn.className = 'btn btn-sm btn-danger';
-    deleteBtn.textContent = '<i class="fas fa-trash"></i>';
+    deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
     deleteBtn.onclick = () => row.remove();
     deleteCol.appendChild(deleteBtn);
     
@@ -1500,18 +1545,39 @@ function getEditSupplierOpeningBalances() {
 }
 
 // Add event listener for add opening balance button
-document.getElementById('addEditSupplierOpeningBalanceBtn')?.addEventListener('click', () => {
+document.getElementById('addEditSupplierOpeningBalanceBtn')?.addEventListener('click', async () => {
+    // Make sure projects are loaded before adding a new row
+    if (editSupplierProjectsList.length === 0) {
+        console.log('Projects not loaded, loading now...');
+        await loadEditSupplierProjectsList();
+    }
     addEditSupplierOpeningBalanceRow();
 });
 
 // Update edit supplier button to load opening balances
-document.getElementById('editSupplierBtn')?.addEventListener('click', async () => {
-    if (supplierData && supplierData.supplier) {
-        document.getElementById('editSupplierName').value = supplierData.supplier.name;
-        document.getElementById('editSupplierPhone').value = supplierData.supplier.phone_number || '';
-        document.getElementById('editSupplierNotes').value = supplierData.supplier.notes || '';
-        await loadEditSupplierOpeningBalances();
-        showModal('editSupplierModal');
+document.getElementById('editSupplierBtn')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const originalHTML = btn.innerHTML;
+    
+    try {
+        // Show loading state
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحميل...';
+        
+        if (supplierData && supplierData.supplier) {
+            document.getElementById('editSupplierName').value = supplierData.supplier.name;
+            document.getElementById('editSupplierPhone').value = supplierData.supplier.phone_number || '';
+            document.getElementById('editSupplierNotes').value = supplierData.supplier.notes || '';
+            await loadEditSupplierOpeningBalances();
+            showModal('editSupplierModal');
+        }
+    } catch (error) {
+        console.error('Error opening edit modal:', error);
+        showAlert('حدث خطأ في تحميل البيانات');
+    } finally {
+        // Restore button state
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
     }
 });
 

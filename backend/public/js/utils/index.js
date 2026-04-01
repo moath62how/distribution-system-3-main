@@ -23,6 +23,7 @@ async function loadUtilities() {
         await loadScript('js/utils/validation.js');
         await loadScript('js/utils/dom.js');
         await loadScript('js/utils/loader.js');
+        await loadScript('js/utils/form-submit.js'); // Prevent double submission
 
         // API utilities (depends on auth.js being loaded first)
         await loadScript('js/utils/api.js');

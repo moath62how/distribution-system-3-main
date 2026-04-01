@@ -1,0 +1,216 @@
+/* SweetAlert2 Material Design Theme */
+
+.swal2-popup {
+    border-radius: 1.5rem !important;
+    padding: 2rem !important;
+    font-family: 'Inter', 'IBM Plex Sans Arabic', sans-serif !important;
+}
+
+.swal2-title {
+    font-family: 'Manrope', 'IBM Plex Sans Arabic', sans-serif !important;
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    color: var(--md-on-surface) !important;
+    padding: 0 0 1rem 0 !important;
+}
+
+.swal2-html-container {
+    font-size: 0.9375rem !important;
+    color: var(--md-on-surface-variant) !important;
+    line-height: 1.6 !important;
+}
+
+.swal2-icon {
+    border-width: 3px !important;
+    margin: 1.5rem auto 1rem !important;
+}
+
+.swal2-icon.swal2-success {
+    border-color: var(--md-tertiary) !important;
+}
+
+.swal2-icon.swal2-success [class^='swal2-success-line'] {
+    background-color: var(--md-tertiary) !important;
+}
+
+.swal2-icon.swal2-success .swal2-success-ring {
+    border-color: rgba(0, 109, 74, 0.3) !important;
+}
+
+.swal2-icon.swal2-error {
+    border-color: var(--md-error) !important;
+}
+
+.swal2-icon.swal2-error [class^='swal2-x-mark-line'] {
+    background-color: var(--md-error) !important;
+}
+
+.swal2-icon.swal2-warning {
+    border-color: #f59e0b !important;
+    color: #f59e0b !important;
+}
+
+.swal2-icon.swal2-info {
+    border-color: var(--md-primary) !important;
+    color: var(--md-primary) !important;
+}
+
+.swal2-icon.swal2-question {
+    border-color: var(--md-secondary) !important;
+    color: var(--md-secondary) !important;
+}
+
+/* Buttons */
+.swal2-actions {
+    gap: 0.75rem !important;
+    margin-top: 1.5rem !important;
+}
+
+.swal2-confirm,
+.swal2-cancel,
+.swal2-deny {
+    border-radius: 1rem !important;
+    padding: 0.75rem 1.5rem !important;
+    font-weight: 700 !important;
+    font-size: 0.875rem !important;
+    border: none !important;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important;
+    transition: all 0.2s ease !important;
+    font-family: 'Inter', 'IBM Plex Sans Arabic', sans-serif !important;
+}
+
+.swal2-confirm:active,
+.swal2-cancel:active,
+.swal2-deny:active {
+    transform: scale(0.95) !important;
+}
+
+.swal2-confirm {
+    background: var(--md-primary) !important;
+    color: var(--md-on-primary) !important;
+}
+
+.swal2-confirm:hover {
+    background: var(--md-primary-dim) !important;
+}
+
+.swal2-cancel {
+    background: var(--md-surface-container) !important;
+    color: var(--md-on-surface) !important;
+    border: 2px solid var(--md-outline-variant) !important;
+}
+
+.swal2-cancel:hover {
+    background: var(--md-surface-container-high) !important;
+}
+
+.swal2-deny {
+    background: var(--md-error) !important;
+    color: var(--md-on-error) !important;
+}
+
+.swal2-deny:hover {
+    background: var(--md-error-dim) !important;
+}
+
+/* Input Fields */
+.swal2-input,
+.swal2-textarea,
+.swal2-select {
+    border: 1px solid var(--md-outline-variant) !important;
+    border-radius: 0.75rem !important;
+    padding: 0.625rem 0.875rem !important;
+    font-size: 0.875rem !important;
+    font-family: 'Inter', 'IBM Plex Sans Arabic', sans-serif !important;
+    color: var(--md-on-surface) !important;
+    background: var(--md-surface-container-lowest) !important;
+}
+
+.swal2-input:focus,
+.swal2-textarea:focus,
+.swal2-select:focus {
+    border-color: var(--md-primary) !important;
+    box-shadow: 0 0 0 3px rgba(84, 95, 115, 0.1) !important;
+    outline: none !important;
+}
+
+/* Validation Message */
+.swal2-validation-message {
+    background: var(--md-error-container) !important;
+    color: var(--md-on-error-container) !important;
+    border-radius: 0.75rem !important;
+    padding: 0.75rem 1rem !important;
+    font-size: 0.875rem !important;
+    margin-top: 0.5rem !important;
+}
+
+/* Close Button */
+.swal2-close {
+    color: var(--md-on-surface-variant) !important;
+    font-size: 2rem !important;
+    transition: all 0.2s ease !important;
+}
+
+.swal2-close:hover {
+    color: var(--md-error) !important;
+    background: var(--md-error-container) !important;
+}
+
+/* Progress Steps */
+.swal2-progress-steps {
+    margin-bottom: 1.5rem !important;
+}
+
+.swal2-progress-step {
+    background: var(--md-primary) !important;
+}
+
+.swal2-progress-step.swal2-active-progress-step {
+    background: var(--md-primary) !important;
+}
+
+.swal2-progress-step-line {
+    background: var(--md-outline-variant) !important;
+}
+
+/* Timer Progress Bar */
+.swal2-timer-progress-bar {
+    background: var(--md-primary) !important;
+}
+
+/* Toast Styles */
+.swal2-toast {
+    border-radius: 1rem !important;
+    padding: 1rem 1.5rem !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+}
+
+.swal2-toast .swal2-title {
+    font-size: 1rem !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.swal2-toast .swal2-icon {
+    margin: 0 0.75rem 0 0 !important;
+    width: 2rem !important;
+    height: 2rem !important;
+}
+
+/* Loading Spinner */
+.swal2-loader {
+    border-color: var(--md-primary) transparent var(--md-primary) transparent !important;
+}
+
+/* RTL Support */
+[dir="rtl"] .swal2-popup {
+    text-align: right !important;
+}
+
+[dir="rtl"] .swal2-actions {
+    flex-direction: row-reverse !important;
+}
+
+[dir="rtl"] .swal2-toast .swal2-icon {
+    margin: 0 0 0 0.75rem !important;
+}

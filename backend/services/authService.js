@@ -149,24 +149,65 @@ class AuthService {
     }
   }
 
-  async logAuditEvent(userId, actionType, entityType, entityId, oldValues, newValues, req) {
+  async logAuditEvent(userId, actionType, entityType, entityId, oldValues, newValues, req, entityName = null) {
     try {
-      const user = userId ? await User.findById(userId) : null;
+      // Safely get user info
+      let user = null;
+      if (userId) {
+        try {
+          user = await User.findById(userId);
+        } catch (userError) {
+          console.error('Failed to fetch user for audit log:', userError.message);
+        }
+      }
       
+      // Generate description if entity name is provided
+      let description = null;
+      if (entityName) {
+        const actionMap = {
+          'create': 'إضافة',
+          'update': 'تعديل',
+          'delete': 'حذف'
+        };
+        
+        const entityMap = {
+          'Client': 'عميل',
+          'Supplier': 'مورد',
+          'Contractor': 'مقاول',
+          'Crusher': 'كسارة',
+          'Employee': 'موظف',
+          'Administration': 'إدارة',
+          'Project': 'مشروع',
+          'Expense': 'مصروف',
+          'Delivery': 'تسليمة',
+          'Payment': 'دفعة',
+          'Adjustment': 'تسوية',
+          'Material': 'مادة',
+          'Attendance': 'حضور'
+        };
+        
+        const action = actionMap[actionType] || actionType;
+        const entity = entityMap[entityType] || entityType;
+        description = `${action} ${entity} "${entityName}"`;
+      }
+      
+      // Create audit log entry
       await AuditLog.create({
         user_id: userId,
         user_role: user ? user.role : 'unknown',
         action_type: actionType,
         entity_type: entityType,
         entity_id: entityId,
+        entity_name: entityName,
+        description: description,
         old_values: oldValues,
         new_values: newValues,
         ip_address: req ? req.ip : null,
         user_agent: req ? req.get('User-Agent') : null
       });
     } catch (error) {
-      console.error('Failed to log audit event:', error);
-      // Don't throw error to avoid breaking the main operation
+      // Log error but NEVER throw - audit logging should never break main operations
+      console.error('❌ Audit logging failed:', error.message);
     }
   }
 

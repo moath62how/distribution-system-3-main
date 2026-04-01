@@ -321,8 +321,15 @@ function editExpense(expense) {
     showModal('editExpenseModal');
 }
 
-function confirmDeleteExpense(id) {
-    if (confirm('هل أنت متأكد من حذف هذا المصروف؟')) {
+async function confirmDeleteExpense(id) {
+    const confirmed = await showConfirmDialog(
+        'تأكيد الحذف',
+        'هل أنت متأكد من حذف هذا المصروف؟',
+        'نعم، احذف',
+        'إلغاء'
+    );
+    
+    if (confirmed) {
         deleteExpenseById(id);
     }
 }

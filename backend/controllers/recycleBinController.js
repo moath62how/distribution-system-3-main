@@ -16,7 +16,14 @@ class RecycleBinController {
       'employees': Employee,
       'deliveries': Delivery,
       'administration': Administration,
-      'suppliers': Supplier
+      'suppliers': Supplier,
+      'payments': require('../models/Payment'),
+      'contractor_payments': require('../models/ContractorPayment'),
+      'crusher_payments': require('../models/CrusherPayment'),
+      'supplier_payments': require('../models/SupplierPayment'),
+      'employee_payments': require('../models/EmployeePayment'),
+      'administration_payments': require('../models/AdministrationPayment'),
+      'adjustments': require('../models/Adjustment')
     };
   }
 
@@ -52,16 +59,65 @@ class RecycleBinController {
           if (date_to) filter.deleted_at.$lte = new Date(date_to + 'T23:59:59.999Z');
         }
 
-        // Get deleted items
-        const items = await Model.find(filter).sort({ deleted_at: -1 });
+        // Get deleted items with population for payment types
+        let query = Model.find(filter).sort({ deleted_at: -1 });
+        
+        // Populate related entities for payments
+        if (entityType === 'payments') {
+          query = query.populate('client_id', 'name');
+        } else if (entityType === 'contractor_payments') {
+          query = query.populate('contractor_id', 'name');
+        } else if (entityType === 'crusher_payments') {
+          query = query.populate('crusher_id', 'name');
+        } else if (entityType === 'supplier_payments') {
+          query = query.populate('supplier_id', 'name');
+        } else if (entityType === 'employee_payments') {
+          query = query.populate('employee_id', 'name');
+        } else if (entityType === 'administration_payments') {
+          query = query.populate('administration_id', 'name');
+        } else if (entityType === 'adjustments') {
+          // Populate entity based on entity_type
+          query = query.populate('entity_id');
+        }
+        
+        const items = await query;
         console.log(`RecycleBin: Found ${items.length} deleted items for ${entityType}`);
         
         // Add entity type and format for frontend
         items.forEach(item => {
+          // Get name based on entity type
+          let itemName = item.name || item.title || item.username;
+          
+          // For payments, use the related entity name
+          if (entityType === 'payments' && item.client_id) {
+            itemName = `دفعة من ${item.client_id.name || 'عميل'}`;
+          } else if (entityType === 'contractor_payments' && item.contractor_id) {
+            itemName = `دفعة من ${item.contractor_id.name || 'مقاول'}`;
+          } else if (entityType === 'crusher_payments' && item.crusher_id) {
+            itemName = `دفعة من ${item.crusher_id.name || 'كسارة'}`;
+          } else if (entityType === 'supplier_payments' && item.supplier_id) {
+            itemName = `دفعة من ${item.supplier_id.name || 'مورد'}`;
+          } else if (entityType === 'employee_payments' && item.employee_id) {
+            itemName = `دفعة من ${item.employee_id.name || 'موظف'}`;
+          } else if (entityType === 'administration_payments' && item.administration_id) {
+            itemName = `دفعة من ${item.administration_id.name || 'إدارة'}`;
+          } else if (entityType === 'adjustments' && item.entity_id) {
+            const entityTypeAr = {
+              'client': 'عميل',
+              'crusher': 'كسارة',
+              'contractor': 'مقاول',
+              'employee': 'موظف',
+              'supplier': 'مورد'
+            }[item.entity_type] || item.entity_type;
+            itemName = `تسوية ${entityTypeAr} - ${item.entity_id.name || item.entity_id}`;
+          } else if (!itemName) {
+            itemName = `${this.getEntityDisplayName(entityType)} - ${item._id}`;
+          }
+          
           deletedItems.push({
             id: item._id,
             entity_type: entityType,
-            name: item.name || item.title || item.username,
+            name: itemName,
             description: this.getItemDescription(item, entityType),
             deleted_at: item.deleted_at,
             original_data: item
@@ -344,6 +400,27 @@ class RecycleBinController {
         return `النوع: ${item.type || 'غير محدد'} | المبلغ: ${item.amount || 0}`;
       case 'suppliers':
         return `هاتف: ${item.phone || 'غير محدد'} | المواد: ${item.materials?.length || 0}`;
+      case 'payments':
+        return `المبلغ: ${item.amount || 0} | الطريقة: ${item.method || 'غير محدد'}`;
+      case 'contractor_payments':
+        return `المبلغ: ${item.amount || 0} | الطريقة: ${item.method || 'غير محدد'}`;
+      case 'crusher_payments':
+        return `المبلغ: ${item.amount || 0} | الطريقة: ${item.method || 'غير محدد'}`;
+      case 'supplier_payments':
+        return `المبلغ: ${item.amount || 0} | الطريقة: ${item.method || 'غير محدد'}`;
+      case 'employee_payments':
+        return `المبلغ: ${item.amount || 0} | الطريقة: ${item.method || 'غير محدد'}`;
+      case 'administration_payments':
+        return `المبلغ: ${item.amount || 0} | الطريقة: ${item.method || 'غير محدد'}`;
+      case 'adjustments':
+        const entityTypeAr = {
+          'client': 'عميل',
+          'crusher': 'كسارة',
+          'contractor': 'مقاول',
+          'employee': 'موظف',
+          'supplier': 'مورد'
+        }[item.entity_type] || item.entity_type;
+        return `المبلغ: ${item.amount || 0} | النوع: ${entityTypeAr} | السبب: ${item.reason || 'غير محدد'}`;
       default:
         return 'لا توجد تفاصيل إضافية';
     }
@@ -357,7 +434,34 @@ class RecycleBinController {
       'employees': 'Employee',
       'deliveries': 'Delivery',
       'administration': 'Administration',
-      'suppliers': 'Supplier'
+      'suppliers': 'Supplier',
+      'payments': 'Payment',
+      'contractor_payments': 'ContractorPayment',
+      'crusher_payments': 'CrusherPayment',
+      'supplier_payments': 'SupplierPayment',
+      'employee_payments': 'EmployeePayment',
+      'administration_payments': 'AdministrationPayment',
+      'adjustments': 'Adjustment'
+    };
+    return names[entityType] || entityType;
+  }
+
+  getEntityDisplayName(entityType) {
+    const names = {
+      'clients': 'عميل',
+      'crushers': 'كسارة',
+      'contractors': 'مقاول',
+      'employees': 'موظف',
+      'deliveries': 'توصيلة',
+      'administration': 'إدارة',
+      'suppliers': 'مورد',
+      'payments': 'دفعة عميل',
+      'contractor_payments': 'دفعة مقاول',
+      'crusher_payments': 'دفعة كسارة',
+      'supplier_payments': 'دفعة مورد',
+      'employee_payments': 'دفعة موظف',
+      'administration_payments': 'دفعة إدارة',
+      'adjustments': 'تسوية'
     };
     return names[entityType] || entityType;
   }

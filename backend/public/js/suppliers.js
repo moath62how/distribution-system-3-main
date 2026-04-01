@@ -229,7 +229,8 @@ async function createSupplier(supplierData) {
     });
 
     if (!response.ok) {
-        throw new Error('فشل في إضافة المورد');
+        const error = await response.json();
+        throw new Error(error.message || 'فشل في إضافة المورد');
     }
 
     return response.json();
@@ -243,8 +244,17 @@ function setupEventHandlers() {
     });
 
     // Add supplier form
-    document.getElementById('addSupplierForm').addEventListener('submit', async (e) => {
+    let isSubmittingSupplier = false;
+    const addSupplierForm = document.getElementById('addSupplierForm');
+    
+    addSupplierForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        // Prevent double submission
+        if (isSubmittingSupplier) {
+            console.log('Already submitting, please wait...');
+            return;
+        }
 
         const formData = new FormData(e.target);
         const materials = [];
@@ -268,35 +278,68 @@ function setupEventHandlers() {
             opening_balances: openingBalances
         };
 
+        isSubmittingSupplier = true;
+        const submitButton = e.target.querySelector('button[type="submit"]');
+        const originalButtonText = submitButton ? submitButton.textContent : 'حفظ';
+        
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.textContent = 'جاري الإضافة...';
+        }
+
         try {
             await createSupplier(supplierData);
-            showMessage('addSupplierMessage', 'تم إضافة المورد بنجاح', 'success');
+            
+            // Show success message
+            await Swal.fire({
+                title: 'تم بنجاح',
+                text: 'تم إضافة المورد بنجاح',
+                icon: 'success',
+                confirmButtonText: 'موافق',
+                timer: 2000
+            });
 
-            setTimeout(() => {
-                closeModal('addSupplierModal');
-                loadSuppliers();
-                e.target.reset();
-                // Reset materials container
-                const container = document.getElementById('materialsContainer');
-                container.innerHTML = `
-                    <div class="material-item">
-                        <div class="form-group">
-                            <label>اسم المادة</label>
-                            <input type="text" name="material_name" placeholder="اسم المادة" required>
-                        </div>
-                        <div class="form-group">
-                            <label>السعر (جنيه/وحدة)</label>
-                            <input type="number" name="material_price" step="0.01" min="0" placeholder="0.00" required>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-danger" onclick="removeMaterial(this)">حذف</button>
+            closeModal('addSupplierModal');
+            loadSuppliers();
+            e.target.reset();
+            
+            // Reset materials container
+            const container = document.getElementById('materialsContainer');
+            container.innerHTML = `
+                <div class="material-item">
+                    <div class="form-group">
+                        <label>اسم المادة</label>
+                        <input type="text" name="material_name" placeholder="اسم المادة" required>
                     </div>
-                `;
-                // Reset opening balances
-                document.getElementById('supplierOpeningBalancesContainer').innerHTML = '';
-                supplierOpeningBalanceCounter = 0;
-            }, 1000);
+                    <div class="form-group">
+                        <label>السعر (جنيه/وحدة)</label>
+                        <input type="number" name="material_price" step="0.01" min="0" placeholder="0.00" required>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removeMaterial(this)">حذف</button>
+                </div>
+            `;
+            
+            // Reset opening balances
+            document.getElementById('supplierOpeningBalancesContainer').innerHTML = '';
+            supplierOpeningBalanceCounter = 0;
+            
         } catch (error) {
-            showMessage('addSupplierMessage', error.message, 'error');
+            console.error('Error creating supplier:', error);
+            
+            // Show error message
+            await Swal.fire({
+                title: 'خطأ',
+                text: error.message || 'فشل في إضافة المورد',
+                icon: 'error',
+                confirmButtonText: 'موافق'
+            });
+        } finally {
+            // Always reset the flag and button state
+            isSubmittingSupplier = false;
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.textContent = originalButtonText;
+            }
         }
     });
 

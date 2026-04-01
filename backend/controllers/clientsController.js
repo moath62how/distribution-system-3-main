@@ -1,6 +1,7 @@
 const clientService = require('../services/clientService');
 const reportService = require('../services/reportService');
 const PDFService = require('../services/pdfServiceUltraFast');
+const CloudinaryService = require('../services/cloudinaryService');
 
 class ClientsController {
     // Get all clients with balances, supporting search, filter, sort, pagination
@@ -58,7 +59,27 @@ class ClientsController {
                 opening_balance
             });
 
+            // Send success response immediately
             res.status(201).json(client);
+
+            // Log audit event asynchronously
+            setImmediate(async () => {
+                try {
+                    const authService = require('../services/authService');
+                    await authService.logAuditEvent(
+                        req.user.id,
+                        'create',
+                        'Client',
+                        client.id,
+                        null,
+                        client,
+                        req,
+                        client.name
+                    );
+                } catch (auditError) {
+                    console.error('❌ Audit logging failed for client creation:', auditError.message);
+                }
+            });
         } catch (err) {
             if (err.code === 11000) {
                 return res.status(400).json({ message: 'اسم العميل موجود بالفعل' });
@@ -86,6 +107,19 @@ class ClientsController {
                 return res.status(404).json({ message: 'العميل غير موجود' });
             }
 
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'update',
+                'Client',
+                client.id,
+                null,
+                client,
+                req,
+                client.name
+            );
+
             res.json(client);
         } catch (err) {
             if (err.code === 11000) {
@@ -105,6 +139,25 @@ class ClientsController {
             }
 
             res.json({ message: 'تم حذف العميل بنجاح' });
+
+            // Log audit event asynchronously
+            setImmediate(async () => {
+                try {
+                    const authService = require('../services/authService');
+                    await authService.logAuditEvent(
+                        req.user?.id,
+                        'delete',
+                        'Client',
+                        req.params.id,
+                        client,
+                        null,
+                        req,
+                        client.name
+                    );
+                } catch (auditError) {
+                    console.error('❌ Audit logging failed for client deletion:', auditError.message);
+                }
+            });
         } catch (err) {
             next(err);
         }
@@ -125,17 +178,81 @@ class ClientsController {
         try {
             const { amount, method, details, note, paid_at, payment_image } = req.body;
 
-            const payment = await clientService.addClientPayment(req.params.id, {
+            console.log('=== Add Client Payment ===');
+            console.log('Client ID:', req.params.id);
+            console.log('Has payment_image:', !!payment_image);
+            if (payment_image) {
+                console.log('Image data length:', payment_image.length);
+                console.log('Image data preview:', payment_image.substring(0, 50));
+            }
+
+            let imageData = null;
+            
+            // Upload image to Cloudinary if provided
+            if (payment_image) {
+                try {
+                    console.log('Starting Cloudinary upload...');
+                    imageData = await CloudinaryService.uploadBase64Image(
+                        payment_image,
+                        `clients/${req.params.id}/payments`
+                    );
+                    console.log('Cloudinary upload success:', {
+                        url: imageData.url,
+                        publicId: imageData.publicId,
+                        size: imageData.size
+                    });
+                } catch (error) {
+                    console.error('Image upload failed:', error);
+                    return res.status(400).json({ 
+                        message: 'فشل رفع الصورة: ' + error.message,
+                        error: error.message
+                    });
+                }
+            }
+
+            const paymentData = {
                 amount,
                 method: method?.trim() || '',
                 details: details?.trim() || '',
                 note: note?.trim() || '',
                 paid_at: paid_at ? new Date(paid_at) : new Date(),
-                payment_image
+                payment_image_url: imageData?.url,
+                payment_image_public_id: imageData?.publicId,
+                payment_image_thumbnail: imageData?.thumbnailUrl
+            };
+
+            console.log('Payment data to save:', {
+                ...paymentData,
+                payment_image_url: paymentData.payment_image_url ? 'EXISTS' : 'NULL'
             });
+
+            const payment = await clientService.addClientPayment(req.params.id, paymentData);
+
+            console.log('Payment saved successfully:', {
+                id: payment.id || payment._id,
+                has_image: !!payment.payment_image_url
+            });
+
+            // Get client name for audit log
+            const client = await clientService.getClientById(req.params.id);
+            const clientName = client && client.client ? client.client.name : 'عميل';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'create',
+                'Payment',
+                payment.id || payment._id,
+                null,
+                payment,
+                req,
+                `دفعة من ${clientName}`
+            );
 
             res.status(201).json(payment);
         } catch (err) {
+            console.error('Add payment error:', err);
             next(err);
         }
     }
@@ -145,22 +262,73 @@ class ClientsController {
         try {
             const { amount, method, details, note, paid_at, payment_image } = req.body;
 
+            let imageData = null;
+            
+            // Upload new image to Cloudinary if provided
+            if (payment_image) {
+                try {
+                    // Get old payment to delete old image
+                    const oldPayment = await clientService.getPaymentById(req.params.id, req.params.paymentId);
+                    
+                    // Upload new image
+                    imageData = await CloudinaryService.uploadBase64Image(
+                        payment_image,
+                        `clients/${req.params.id}/payments`
+                    );
+                    
+                    // Delete old image if exists
+                    if (oldPayment && oldPayment.payment_image_public_id) {
+                        await CloudinaryService.deleteImage(oldPayment.payment_image_public_id);
+                    }
+                } catch (error) {
+                    console.error('Image upload failed:', error);
+                    return res.status(400).json({ 
+                        message: 'فشل رفع الصورة: ' + error.message 
+                    });
+                }
+            }
+
+            const updateData = {
+                amount,
+                method: method?.trim() || '',
+                details: details?.trim() || '',
+                note: note?.trim() || '',
+                paid_at: paid_at ? new Date(paid_at) : new Date()
+            };
+
+            // Add image data if uploaded
+            if (imageData) {
+                updateData.payment_image_url = imageData.url;
+                updateData.payment_image_public_id = imageData.publicId;
+                updateData.payment_image_thumbnail = imageData.thumbnailUrl;
+            }
+
             const payment = await clientService.updateClientPayment(
                 req.params.id,
                 req.params.paymentId,
-                {
-                    amount,
-                    method: method?.trim() || '',
-                    details: details?.trim() || '',
-                    note: note?.trim() || '',
-                    paid_at: paid_at ? new Date(paid_at) : new Date(),
-                    payment_image
-                }
+                updateData
             );
 
             if (!payment) {
                 return res.status(404).json({ message: 'الدفعة غير موجودة' });
             }
+
+            // Get client name for audit log
+            const client = await clientService.getClientById(req.params.id);
+            const clientName = client && client.client ? client.client.name : 'عميل';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'update',
+                'Payment',
+                req.params.paymentId,
+                null,
+                payment,
+                req,
+                `دفعة من ${clientName}`
+            );
 
             res.json(payment);
         } catch (err) {
@@ -179,6 +347,23 @@ class ClientsController {
             if (!payment) {
                 return res.status(404).json({ message: 'الدفعة غير موجودة' });
             }
+
+            // Get client name for audit log
+            const client = await clientService.getClientById(req.params.id);
+            const clientName = client && client.client ? client.client.name : 'عميل';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'delete',
+                'Payment',
+                req.params.paymentId,
+                payment.toJSON(),
+                null,
+                req,
+                `دفعة من ${clientName}`
+            );
 
             res.json({ message: 'تم حذف الدفعة بنجاح' });
         } catch (err) {
@@ -206,6 +391,23 @@ class ClientsController {
                 reason: reason?.trim() || ''
             });
 
+            // Get client name for audit log
+            const client = await clientService.getClientById(req.params.id);
+            const clientName = client && client.client ? client.client.name : 'عميل';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'create',
+                'Adjustment',
+                adjustment.id || adjustment._id,
+                null,
+                adjustment,
+                req,
+                `تسوية من ${clientName}`
+            );
+
             res.status(201).json(adjustment);
         } catch (err) {
             next(err);
@@ -230,6 +432,23 @@ class ClientsController {
                 return res.status(404).json({ message: 'التسوية غير موجودة' });
             }
 
+            // Get client name for audit log
+            const client = await clientService.getClientById(req.params.id);
+            const clientName = client && client.client ? client.client.name : 'عميل';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'update',
+                'Adjustment',
+                req.params.adjustmentId,
+                null,
+                adjustment,
+                req,
+                `تسوية من ${clientName}`
+            );
+
             res.json(adjustment);
         } catch (err) {
             next(err);
@@ -247,6 +466,23 @@ class ClientsController {
             if (!adjustment) {
                 return res.status(404).json({ message: 'التسوية غير موجودة' });
             }
+
+            // Get client name for audit log
+            const client = await clientService.getClientById(req.params.id);
+            const clientName = client && client.client ? client.client.name : 'عميل';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'delete',
+                'Adjustment',
+                req.params.adjustmentId,
+                adjustment,
+                null,
+                req,
+                `تسوية من ${clientName}`
+            );
 
             res.json({ message: 'تم حذف التسوية بنجاح' });
         } catch (err) {
