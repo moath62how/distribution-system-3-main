@@ -6,9 +6,7 @@
   "scripts": {
     "start": "cross-env NODE_OPTIONS=\"--dns-result-order=verbatim\" node backend/server.js",
     "dev": "nodemon backend/server.js",
-    "test": "jest",
-    "test-mongo": "cross-env NODE_OPTIONS=\"--dns-result-order=verbatim\" node test-mongodb-connection.js",
-    "check-ip": "node check-my-ip.js"
+    "test": "jest"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
