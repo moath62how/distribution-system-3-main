@@ -270,13 +270,17 @@ class PayrollService {
         const salaryData = await this.calculateTotalEarnedSalary(employee);
 
         // Get payments
-        const payments = await EmployeePayment.find({ employee_id: employeeId });
+        const payments = await EmployeePayment.find({ 
+            employee_id: employeeId,
+            is_deleted: { $ne: true }
+        });
         const totalPayments = payments.reduce((sum, p) => sum + toNumber(p.amount), 0);
 
         // Get adjustments
         const adjustments = await Adjustment.find({
             entity_type: 'employee',
-            entity_id: employeeId
+            entity_id: employeeId,
+            is_deleted: { $ne: true }
         });
         const totalAdjustments = adjustments.reduce((sum, a) => sum + toNumber(a.amount), 0);
 

@@ -9,7 +9,7 @@ const userSessionSchema = new mongoose.Schema({
   token_hash: {
     type: String,
     required: true,
-    unique: true
+    unique: true  // This creates an index automatically
   },
   expires_at: {
     type: Date,
@@ -30,11 +30,10 @@ const userSessionSchema = new mongoose.Schema({
 });
 
 // Indexes for performance
-userSessionSchema.index({ token_hash: 1 });
+// Note: token_hash already has unique index from schema definition above
 userSessionSchema.index({ user_id: 1, active: 1 });
-userSessionSchema.index({ expires_at: 1 });
 
-// Automatically remove expired sessions
+// Automatically remove expired sessions (TTL index)
 userSessionSchema.index({ expires_at: 1 }, { expireAfterSeconds: 0 });
 
 module.exports = mongoose.model('UserSession', userSessionSchema);

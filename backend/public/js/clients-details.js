@@ -26,25 +26,25 @@ function renderSummary(totals) {
     const openingLabel = openingBalance > 0 ? '(مستحق لنا)' : openingBalance < 0 ? '(مستحق للعميل)' : '';
 
     container.innerHTML = `
-        <div class="summary-item">
-            <div class="summary-value ${openingClass}">${formatCurrency(Math.abs(openingBalance))} <small style="font-size: 0.75rem;">${openingLabel}</small></div>
-            <div class="summary-label">الرصيد الافتتاحي</div>
+        <div class="summary-item-modern">
+            <div class="summary-value-modern ${openingClass}">${formatCurrency(Math.abs(openingBalance))} <small style="font-size: 0.75rem;">${openingLabel}</small></div>
+            <div class="summary-label-modern">الرصيد الافتتاحي</div>
         </div>
-        <div class="summary-item">
-            <div class="summary-value text-success">${formatCurrency(totals.totalDeliveries || 0)}</div>
-            <div class="summary-label">إجمالي التوريدات</div>
+        <div class="summary-item-modern">
+            <div class="summary-value-modern text-success">${formatCurrency(totals.totalDeliveries || 0)}</div>
+            <div class="summary-label-modern">إجمالي التوريدات</div>
         </div>
-        <div class="summary-item">
-            <div class="summary-value text-danger">${formatCurrency(totals.totalPayments || 0)}</div>
-            <div class="summary-label">إجمالي المدفوعات</div>
+        <div class="summary-item-modern">
+            <div class="summary-value-modern text-danger">${formatCurrency(totals.totalPayments || 0)}</div>
+            <div class="summary-label-modern">إجمالي المدفوعات</div>
         </div>
-        <div class="summary-item">
-            <div class="summary-value ${totals.totalAdjustments > 0 ? 'text-success' : totals.totalAdjustments < 0 ? 'text-danger' : ''}">${formatCurrency(Math.abs(totals.totalAdjustments || 0))} <small style="font-size: 0.75rem;">${totals.totalAdjustments > 0 ? '(مستحق لنا)' : totals.totalAdjustments < 0 ? '(مستحق للعميل)' : ''}</small></div>
-            <div class="summary-label">إجمالي التعديلات</div>
+        <div class="summary-item-modern">
+            <div class="summary-value-modern ${totals.totalAdjustments > 0 ? 'text-success' : totals.totalAdjustments < 0 ? 'text-danger' : ''}">${formatCurrency(Math.abs(totals.totalAdjustments || 0))} <small style="font-size: 0.75rem;">${totals.totalAdjustments > 0 ? '(مستحق لنا)' : totals.totalAdjustments < 0 ? '(مستحق للعميل)' : ''}</small></div>
+            <div class="summary-label-modern">إجمالي التعديلات</div>
         </div>
-        <div class="summary-item">
-            <div class="summary-value ${balanceClass}">${formatCurrency(Math.abs(balance))} <small style="font-size: 0.75rem;">${balanceLabel}</small></div>
-            <div class="summary-label">الرصيد الصافي</div>
+        <div class="summary-item-modern">
+            <div class="summary-value-modern ${balanceClass}">${formatCurrency(Math.abs(balance))} <small style="font-size: 0.75rem;">${balanceLabel}</small></div>
+            <div class="summary-label-modern">الرصيد الصافي</div>
         </div>
     `;
 }
@@ -54,9 +54,10 @@ function renderMaterials(materialTotals) {
 
     if (!materialTotals || materialTotals.length === 0) {
         container.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-icon"><i class="fas fa-box"></i></div>
-                <div>لا توجد بيانات مواد</div>
+            <div class="empty-state-modern">
+                <i class="fas fa-box"></i>
+                <h3>لا توجد بيانات مواد</h3>
+                <p>لم يتم تسجيل أي توريدات بعد</p>
             </div>
         `;
         return;
@@ -65,9 +66,9 @@ function renderMaterials(materialTotals) {
     container.innerHTML = '';
     materialTotals.forEach(material => {
         const card = document.createElement('div');
-        card.className = 'material-card';
+        card.className = 'material-card-modern';
         card.innerHTML = `
-            <div class="material-title">${material.material}</div>
+            <div class="material-title"><i class="fas fa-cube"></i> ${material.material}</div>
             <div class="material-stat">
                 <span>الكمية:</span>
                 <strong>${formatQuantity(material.totalQty)} م³</strong>
@@ -86,16 +87,17 @@ function renderDeliveries(deliveries) {
 
     if (!deliveries || deliveries.length === 0) {
         container.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-icon">🚚</div>
-                <div>لا توجد تسليمات مسجلة</div>
+            <div class="empty-state-modern">
+                <i class="fas fa-truck-loading"></i>
+                <h3>لا توجد تسليمات مسجلة</h3>
+                <p>لم يتم تسجيل أي تسليمات لهذا العميل بعد</p>
             </div>
         `;
         return;
     }
 
     const table = document.createElement('table');
-    table.className = 'table';
+    table.className = 'table-modern';
 
     // Header
     const thead = document.createElement('thead');
@@ -124,7 +126,7 @@ function renderDeliveries(deliveries) {
             delivery.contractor_name || '-',
             delivery.material || '-',
             delivery.voucher || '-',
-            formatQuantity(delivery.quantity) + ' م³', // Only quantity, not net_quantity
+            formatQuantity(delivery.quantity) + ' م³',
             formatCurrency(delivery.price_per_meter),
             formatCurrency(delivery.total_value)
         ];
@@ -138,8 +140,14 @@ function renderDeliveries(deliveries) {
         // Actions cell
         const actionsCell = document.createElement('td');
         actionsCell.innerHTML = `
-            <button class="btn btn-sm btn-secondary crud-btn" data-action="edit" data-type="delivery" data-id="${delivery.id}" title="تعديل"><i class="fas fa-edit"></i></button>
-            <button class="btn btn-sm btn-danger crud-btn" data-action="delete" data-type="delivery" data-id="${delivery.id}" title="حذف"><i class="fas fa-trash"></i></button>
+            <div class="action-btn-group">
+                <button class="action-btn-modern edit crud-btn" data-action="edit" data-type="delivery" data-id="${delivery.id}" title="تعديل">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="action-btn-modern danger crud-btn" data-action="delete" data-type="delivery" data-id="${delivery.id}" title="حذف">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
         `;
         row.appendChild(actionsCell);
 
@@ -156,16 +164,17 @@ function renderPayments(payments) {
 
     if (!payments || payments.length === 0) {
         container.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-icon"><i class="fas fa-money-bill-wave"></i></div>
-                <div>لا توجد مدفوعات مسجلة</div>
+            <div class="empty-state-modern">
+                <i class="fas fa-money-bill-wave"></i>
+                <h3>لا توجد مدفوعات مسجلة</h3>
+                <p>لم يتم تسجيل أي مدفوعات لهذا العميل بعد</p>
             </div>
         `;
         return;
     }
 
     const table = document.createElement('table');
-    table.className = 'table';
+    table.className = 'table-modern';
 
     // Header
     const thead = document.createElement('thead');
@@ -201,10 +210,10 @@ function renderPayments(payments) {
 
         // Image cell
         const imageCell = document.createElement('td');
-        if (payment.payment_image) {
+        if (payment.payment_image_url) {
             imageCell.innerHTML = `
-                <button class="btn btn-sm btn-secondary" data-image="${payment.payment_image}" onclick="showImageModal(this.getAttribute('data-image'))" title="عرض الصورة">
-                    <i class="fas fa-image"></i> عرض
+                <button class="action-btn-modern view" data-image="${payment.payment_image_url}" onclick="showImageModal(this.getAttribute('data-image'))" title="عرض الصورة">
+                    <i class="fas fa-image"></i>
                 </button>
             `;
         } else {
@@ -212,14 +221,21 @@ function renderPayments(payments) {
         }
         row.appendChild(imageCell);
 
-        // Actions cell - Using CRUD button system like adjustments
+        // Actions cell
         const actionsCell = document.createElement('td');
         actionsCell.innerHTML = `
-            <button class="btn btn-sm btn-secondary crud-btn" data-action="view" data-type="payment" data-id="${payment.id}" title="عرض التفاصيل"><i class="fas fa-eye"></i></button>
-            <button class="btn btn-sm btn-secondary crud-btn" data-action="edit" data-type="payment" data-id="${payment.id}" title="تعديل"><i class="fas fa-edit"></i></button>
-            <button class="btn btn-sm btn-danger crud-btn" data-action="delete" data-type="payment" data-id="${payment.id}" title="حذف"><i class="fas fa-trash"></i></button>
+            <div class="action-btn-group">
+                <button class="action-btn-modern view crud-btn" data-action="view" data-type="payment" data-id="${payment.id}" title="عرض التفاصيل">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="action-btn-modern edit crud-btn" data-action="edit" data-type="payment" data-id="${payment.id}" title="تعديل">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="action-btn-modern danger crud-btn" data-action="delete" data-type="payment" data-id="${payment.id}" title="حذف">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
         `;
-        console.log('Payment actions cell created for payment ID:', payment.id);
         row.appendChild(actionsCell);
 
         tbody.appendChild(row);
@@ -235,16 +251,17 @@ function renderAdjustments(adjustments) {
 
     if (!adjustments || adjustments.length === 0) {
         container.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-icon"><i class="fas fa-balance-scale"></i></div>
-                <div>لا توجد تسويات مسجلة</div>
+            <div class="empty-state-modern">
+                <i class="fas fa-balance-scale"></i>
+                <h3>لا توجد تسويات مسجلة</h3>
+                <p>لم يتم تسجيل أي تسويات لهذا العميل بعد</p>
             </div>
         `;
         return;
     }
 
     const table = document.createElement('table');
-    table.className = 'table';
+    table.className = 'table-modern';
 
     // Header
     const thead = document.createElement('thead');
@@ -292,10 +309,10 @@ function renderAdjustments(adjustments) {
 
         // Image cell
         const imageCell = document.createElement('td');
-        if (adjustment.payment_image) {
+        if (adjustment.payment_image_url) {
             imageCell.innerHTML = `
-                <button class="btn btn-sm btn-secondary" data-image="${adjustment.payment_image}" onclick="showImageModal(this.getAttribute('data-image'))" title="عرض الصورة">
-                    <i class="fas fa-image"></i> عرض
+                <button class="action-btn-modern view" data-image="${adjustment.payment_image_url}" onclick="showImageModal(this.getAttribute('data-image'))" title="عرض الصورة">
+                    <i class="fas fa-image"></i>
                 </button>
             `;
         } else {
@@ -306,11 +323,18 @@ function renderAdjustments(adjustments) {
         // Actions cell
         const actionsCell = document.createElement('td');
         actionsCell.innerHTML = `
-            <button class="btn btn-sm btn-secondary crud-btn" data-action="view" data-type="adjustment" data-id="${adjustment.id}" title="عرض التفاصيل"><i class="fas fa-eye"></i></button>
-            <button class="btn btn-sm btn-secondary crud-btn" data-action="edit" data-type="adjustment" data-id="${adjustment.id}" title="تعديل"><i class="fas fa-edit"></i></button>
-            <button class="btn btn-sm btn-danger crud-btn" data-action="delete" data-type="adjustment" data-id="${adjustment.id}" title="حذف"><i class="fas fa-trash"></i></button>
+            <div class="action-btn-group">
+                <button class="action-btn-modern view crud-btn" data-action="view" data-type="adjustment" data-id="${adjustment.id}" title="عرض التفاصيل">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="action-btn-modern edit crud-btn" data-action="edit" data-type="adjustment" data-id="${adjustment.id}" title="تعديل">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="action-btn-modern danger crud-btn" data-action="delete" data-type="adjustment" data-id="${adjustment.id}" title="حذف">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
         `;
-        console.log('Adjustment actions cell created for adjustment ID:', adjustment.id);
         row.appendChild(actionsCell);
 
         tbody.appendChild(row);
@@ -327,7 +351,7 @@ async function editPayment(paymentId) {
         // Find payment in current data
         const payment = allPayments.find(p => p.id === paymentId);
         if (!payment) {
-            alert('لم يتم العثور على الدفعة');
+            showAlert('لم يتم العثور على الدفعة');
             return;
         }
 
@@ -355,12 +379,19 @@ async function editPayment(paymentId) {
         showModal('paymentModal');
     } catch (error) {
         console.error('Error editing payment:', error);
-        alert('حدث خطأ في تحميل بيانات الدفعة');
+        showAlert('حدث خطأ في تحميل بيانات الدفعة');
     }
 }
 
 async function deletePayment(paymentId) {
-    if (!confirm('هل أنت متأكد من حذف هذه الدفعة؟')) {
+    const confirmed = await showConfirmDialog(
+        'تأكيد الحذف',
+        'هل أنت متأكد من حذف هذه الدفعة؟',
+        'نعم، احذف',
+        'إلغاء'
+    );
+    
+    if (!confirmed) {
         return;
     }
 
@@ -368,11 +399,11 @@ async function deletePayment(paymentId) {
         const clientId = getClientIdFromURL();
         await apiDelete(`/clients/${clientId}/payments/${paymentId}`);
 
-        alert('تم حذف الدفعة بنجاح');
+        showAlert('تم حذف الدفعة بنجاح');
         loadClientDetails(); // Reload data
     } catch (error) {
         console.error('Error deleting payment:', error);
-        alert('حدث خطأ في حذف الدفعة');
+        showAlert('حدث خطأ في حذف الدفعة');
     }
 }
 
@@ -382,7 +413,7 @@ async function showAdjustmentDetails(adjustmentId) {
         // Find adjustment in current data
         const adjustment = allAdjustments.find(a => a.id === adjustmentId);
         if (!adjustment) {
-            alert('لم يتم العثور على التسوية');
+            showAlert('لم يتم العثور على التسوية');
             return;
         }
 
@@ -416,12 +447,12 @@ async function showAdjustmentDetails(adjustmentId) {
         `;
 
         // Add image if exists
-        if (adjustment.payment_image) {
+        if (adjustment.payment_image_url) {
             detailsHTML += `
                 <div class="detail-row">
                     <strong>الصورة:</strong>
                     <div>
-                        <button class="btn btn-sm btn-secondary" onclick="showImageModal('${adjustment.payment_image}')" style="margin-top: 5px;">
+                        <button class="btn btn-sm btn-secondary" onclick="showImageModal('${adjustment.payment_image_url}')" style="margin-top: 5px;">
                             <i class="fas fa-image"></i> عرض الصورة
                         </button>
                     </div>
@@ -438,7 +469,7 @@ async function showAdjustmentDetails(adjustmentId) {
         showModal('adjustmentDetailsModal');
     } catch (error) {
         console.error('Error viewing adjustment:', error);
-        alert('حدث خطأ في عرض تفاصيل التسوية');
+        showAlert('حدث خطأ في عرض تفاصيل التسوية');
     }
 }
 
@@ -448,7 +479,7 @@ async function showPaymentDetails(paymentId) {
         // Find payment in current data
         const payment = allPayments.find(p => p.id === paymentId);
         if (!payment) {
-            alert('لم يتم العثور على الدفعة');
+            showAlert('لم يتم العثور على الدفعة');
             return;
         }
 
@@ -490,12 +521,12 @@ async function showPaymentDetails(paymentId) {
         }
 
         // Add image if exists
-        if (payment.payment_image) {
+        if (payment.payment_image_url) {
             detailsHTML += `
                 <div class="detail-row">
                     <strong>الصورة:</strong>
                     <div>
-                        <button class="btn btn-sm btn-secondary" onclick="showImageModal('${payment.payment_image}')" style="margin-top: 5px;">
+                        <button class="btn btn-sm btn-secondary" onclick="showImageModal('${payment.payment_image_url}')" style="margin-top: 5px;">
                             <i class="fas fa-image"></i> عرض الصورة
                         </button>
                     </div>
@@ -512,7 +543,7 @@ async function showPaymentDetails(paymentId) {
         showModal('paymentDetailsModal');
     } catch (error) {
         console.error('Error viewing payment:', error);
-        alert('حدث خطأ في عرض تفاصيل الدفعة');
+        showAlert('حدث خطأ في عرض تفاصيل الدفعة');
     }
 }
 
@@ -521,7 +552,7 @@ async function editAdjustment(adjustmentId) {
         // Find adjustment in current data
         const adjustment = allAdjustments.find(a => a.id === adjustmentId);
         if (!adjustment) {
-            alert('لم يتم العثور على التسوية');
+            showAlert('لم يتم العثور على التسوية');
             return;
         }
 
@@ -538,12 +569,19 @@ async function editAdjustment(adjustmentId) {
         showModal('adjustmentModal');
     } catch (error) {
         console.error('Error editing adjustment:', error);
-        alert('حدث خطأ في تحميل بيانات التسوية');
+        showAlert('حدث خطأ في تحميل بيانات التسوية');
     }
 }
 
 async function deleteAdjustment(adjustmentId) {
-    if (!confirm('هل أنت متأكد من حذف هذه التسوية؟')) {
+    const confirmed = await showConfirmDialog(
+        'تأكيد الحذف',
+        'هل أنت متأكد من حذف هذه التسوية؟',
+        'نعم، احذف',
+        'إلغاء'
+    );
+    
+    if (!confirmed) {
         return;
     }
 
@@ -551,11 +589,11 @@ async function deleteAdjustment(adjustmentId) {
         const clientId = getClientIdFromURL();
         await apiDelete(`/clients/${clientId}/adjustments/${adjustmentId}`);
 
-        alert('تم حذف التسوية بنجاح');
+        showAlert('تم حذف التسوية بنجاح');
         loadClientDetails(); // Reload data
     } catch (error) {
         console.error('Error deleting adjustment:', error);
-        alert('حدث خطأ في حذف التسوية');
+        showAlert('حدث خطأ في حذف التسوية');
     }
 }
 
@@ -570,8 +608,24 @@ async function updateAdjustment(adjustmentId, adjustmentData) {
 }
 
 async function addPayment(clientId, paymentData) {
-    console.log('Sending payment data:', paymentData);
-    return await apiPost(`/clients/${clientId}/payments`, paymentData);
+    console.log('=== Adding Payment ===');
+    console.log('Client ID:', clientId);
+    console.log('Payment data:', {
+        amount: paymentData.amount,
+        method: paymentData.method,
+        has_image: !!paymentData.payment_image,
+        image_length: paymentData.payment_image ? paymentData.payment_image.length : 0
+    });
+    
+    const response = await apiPost(`/clients/${clientId}/payments`, paymentData);
+    
+    console.log('Payment response:', {
+        success: !!response,
+        has_image_url: !!response?.payment_image_url,
+        image_url: response?.payment_image_url
+    });
+    
+    return response;
 }
 
 async function addAdjustment(clientId, adjustmentData) {
@@ -1083,7 +1137,7 @@ function openEditClientModal() {
 
     if (!clientData || !clientData.client) {
         console.error('No client data available');
-        alert('لا توجد بيانات عميل للتعديل');
+        showAlert('لا توجد بيانات عميل للتعديل');
         return;
     }
 
@@ -1317,7 +1371,7 @@ function showImageModal(imageData) {
 
     // Check if imageData is valid
     if (!imageData || imageData === 'null' || imageData === 'undefined' || imageData.trim() === '') {
-        alert('لا توجد صورة لعرضها');
+        showAlert('لا توجد صورة لعرضها');
         return;
     }
 
@@ -1329,7 +1383,7 @@ function showImageModal(imageData) {
     modalImage.onerror = function () {
         console.error('Failed to load image. Data length:', imageData ? imageData.length : 0);
         console.error('Image data preview:', imageData ? imageData.substring(0, 200) : 'null');
-        alert('فشل في تحميل الصورة - البيانات قد تكون تالفة أو كبيرة جداً');
+        showAlert('فشل في تحميل الصورة - البيانات قد تكون تالفة أو كبيرة جداً');
         closeModal('imageModal');
     };
 
@@ -1384,7 +1438,7 @@ function showImageModal(imageData) {
 
     } catch (error) {
         console.error('Error processing image data:', error);
-        alert('خطأ في معالجة بيانات الصورة: ' + error.message);
+        showAlert('خطأ في معالجة بيانات الصورة: ' + error.message);
     }
 }
 
@@ -1395,7 +1449,7 @@ async function generateDeliveriesReport() {
     const toDate = document.getElementById('deliveriesToDate').value;
 
     if (!fromDate || !toDate) {
-        alert('يرجى تحديد تاريخ البداية والنهاية');
+        showAlert('يرجى تحديد تاريخ البداية والنهاية');
         return;
     }
 
@@ -1404,7 +1458,7 @@ async function generateDeliveriesReport() {
         window.open(url, '_blank');
     } catch (error) {
         console.error('Error generating deliveries report:', error);
-        alert('حدث خطأ في إنشاء التقرير');
+        showAlert('حدث خطأ في إنشاء التقرير');
     }
 }
 
@@ -1419,7 +1473,7 @@ async function generateAccountStatement() {
         toDate = document.getElementById('statementToDate').value;
 
         if (!fromDate || !toDate) {
-            alert('يرجى تحديد تاريخ البداية والنهاية');
+            showAlert('يرجى تحديد تاريخ البداية والنهاية');
             return;
         }
     } else {
@@ -1436,7 +1490,7 @@ async function generateAccountStatement() {
         window.open(url, '_blank');
     } catch (error) {
         console.error('Error generating account statement:', error);
-        alert('حدث خطأ في إنشاء كشف الحساب');
+        showAlert('حدث خطأ في إنشاء كشف الحساب');
     }
 }
 

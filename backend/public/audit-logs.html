@@ -168,6 +168,7 @@
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="css/loaders.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 </head>
 <body>
     <!-- Global Loader -->
@@ -380,7 +381,7 @@
                     </div>
                     <div class="audit-content">
                         <div class="audit-title">
-                            ${getActionText(log.action_type)} ${getEntityText(log.entity_type)}
+                            ${log.description || `${getActionText(log.action_type)} ${getEntityText(log.entity_type)}`}
                         </div>
                         <div class="audit-details">
                             المستخدم: ${log.user_role === 'manager' ? 'المدير' : 
@@ -479,10 +480,30 @@
         // Load data when page loads
         document.addEventListener('DOMContentLoaded', function() {
             if (authManager.checkAuth()) {
+                // Check if user has permission to view audit logs
+                const user = authManager.getUserInfo();
+                const allowedRoles = ['manager', 'system_maintenance'];
+                
+                if (!user || !allowedRoles.includes(user.role)) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'غير مصرح',
+                        text: 'ليس لديك صلاحية للوصول إلى سجل العمليات',
+                        confirmButtonText: 'حسناً'
+                    }).then(() => {
+                        window.location.href = 'index.html';
+                    });
+                    return;
+                }
+                
                 loadAuditLogs();
             }
         });
     </script>
     <script src="js/utils/loader.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="js/utils/modals.js"></script>
+    <script src="js/utils/crud-buttons.js"></script>
 </body>
 </html>

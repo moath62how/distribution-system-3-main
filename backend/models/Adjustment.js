@@ -28,6 +28,14 @@ const adjustmentSchema = new mongoose.Schema({
     },
     reason: {
         type: String
+    },
+    deleted_at: {
+        type: Date,
+        default: null
+    },
+    is_deleted: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },

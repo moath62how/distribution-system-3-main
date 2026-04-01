@@ -4,6 +4,8 @@ const supplierSchema = new mongoose.Schema({
     name: {
         type: String,
         required: true,
+        unique: true,
+        trim: true,
         maxlength: 255
     },
     phone_number: {
@@ -53,7 +55,7 @@ const supplierSchema = new mongoose.Schema({
 });
 
 // Indexes for efficient queries
-supplierSchema.index({ name: 1 });
+// Note: name already has unique index from schema definition above
 supplierSchema.index({ status: 1 });
 
 // Soft delete will be handled in the service layer for now

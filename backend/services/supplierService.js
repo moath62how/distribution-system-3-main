@@ -1,4 +1,5 @@
 const { Supplier, Delivery, SupplierPayment } = require('../models');
+const CloudinaryService = require('./cloudinaryService');
 
 const toNumber = (v) => Number(v || 0);
 
@@ -24,7 +25,8 @@ class SupplierService {
 
                     // Get payments made to supplier
                     const payments = await SupplierPayment.find({
-                        supplier_id: supplier._id
+                        supplier_id: supplier._id,
+                        is_deleted: { $ne: true }
                     });
                     const totalPaid = payments.reduce((sum, p) => sum + toNumber(p.amount), 0);
 
@@ -32,7 +34,8 @@ class SupplierService {
                     const { Adjustment, SupplierOpeningBalance } = require('../models');
                     const adjustments = await Adjustment.find({
                         entity_type: 'supplier',
-                        entity_id: supplier._id
+                        entity_id: supplier._id,
+                        is_deleted: { $ne: true }
                     });
                     const totalAdjustments = adjustments.reduce((sum, a) => sum + toNumber(a.amount), 0);
 
@@ -103,13 +106,15 @@ class SupplierService {
         }).populate('client_id', 'name').sort({ created_at: -1 });
 
         const payments = await SupplierPayment.find({
-            supplier_id: id
+            supplier_id: id,
+            is_deleted: { $ne: true }
         }).sort({ paid_at: -1 });
 
         const { Adjustment, SupplierOpeningBalance } = require('../models');
         const adjustments = await Adjustment.find({
             entity_type: 'supplier',
-            entity_id: id
+            entity_id: id,
+            is_deleted: { $ne: true }
         }).sort({ created_at: -1 });
 
         // Get opening balances
@@ -171,7 +176,8 @@ class SupplierService {
                 method: p.method,
                 details: p.details,
                 note: p.note,
-                payment_image: p.payment_image,
+                payment_image_url: p.payment_image_url,
+                payment_image_thumbnail: p.payment_image_thumbnail,
                 paid_at: p.paid_at,
                 created_at: p.created_at
             })),
@@ -199,6 +205,18 @@ class SupplierService {
 
     static async createSupplier(data) {
         const { SupplierOpeningBalance } = require('../models');
+
+        // Check if supplier with same name already exists
+        const existingSupplier = await Supplier.findOne({ 
+            name: data.name.trim(),
+            is_deleted: { $ne: true }
+        });
+
+        if (existingSupplier) {
+            const error = new Error('اسم المورد موجود بالفعل');
+            error.code = 11000;
+            throw error;
+        }
 
         const supplier = new Supplier(data);
         await supplier.save();
@@ -324,7 +342,8 @@ class SupplierService {
         // Check if supplier has related records
         const deliveriesCount = await Delivery.countDocuments({ supplier_id: id });
         const paymentsCount = await SupplierPayment.countDocuments({
-            supplier_id: id
+            supplier_id: id,
+            is_deleted: { $ne: true }
         });
 
         if (deliveriesCount > 0 || paymentsCount > 0) {
@@ -441,29 +460,69 @@ class SupplierService {
     static async addSupplierPayment(supplierId, paymentData) {
         const payment = new SupplierPayment({
             supplier_id: supplierId,
-            ...paymentData
+            amount: toNumber(paymentData.amount),
+            method: paymentData.method,
+            details: paymentData.details,
+            note: paymentData.note,
+            paid_at: paymentData.paid_at,
+            payment_image_url: paymentData.payment_image_url,
+            payment_image_public_id: paymentData.payment_image_public_id,
+            payment_image_thumbnail: paymentData.payment_image_thumbnail
         });
         await payment.save();
         return payment;
     }
 
+    static async getPaymentById(supplierId, paymentId) {
+        return await SupplierPayment.findOne({
+            _id: paymentId,
+            supplier_id: supplierId,
+            is_deleted: { $ne: true }
+        });
+    }
+
     static async updateSupplierPayment(supplierId, paymentId, paymentData) {
+        const updateData = {
+            amount: toNumber(paymentData.amount),
+            method: paymentData.method,
+            details: paymentData.details,
+            note: paymentData.note,
+            paid_at: paymentData.paid_at
+        };
+
+        if (paymentData.payment_image_url) {
+            updateData.payment_image_url = paymentData.payment_image_url;
+            updateData.payment_image_public_id = paymentData.payment_image_public_id;
+            updateData.payment_image_thumbnail = paymentData.payment_image_thumbnail;
+        }
+
         const payment = await SupplierPayment.findOneAndUpdate(
             {
                 _id: paymentId,
                 supplier_id: supplierId
             },
-            paymentData,
+            updateData,
             { new: true }
         );
         return payment;
     }
 
     static async deleteSupplierPayment(supplierId, paymentId) {
-        const payment = await SupplierPayment.findOneAndDelete({
+        const payment = await SupplierPayment.findOne({
             _id: paymentId,
-            supplier_id: supplierId
+            supplier_id: supplierId,
+            is_deleted: { $ne: true }
         });
+
+        if (!payment) {
+            return null;
+        }
+
+        // Soft delete
+        payment.is_deleted = true;
+        payment.deleted_at = new Date();
+        await payment.save();
+
         return payment;
     }
 
@@ -475,7 +534,8 @@ class SupplierService {
         const { Adjustment } = require('../models');
         return await Adjustment.find({
             entity_type: 'supplier',
-            entity_id: supplierId
+            entity_id: supplierId,
+            is_deleted: { $ne: true }
         }).sort({ created_at: -1 });
     }
 
@@ -531,11 +591,22 @@ class SupplierService {
 
     static async deleteSupplierAdjustment(supplierId, adjustmentId) {
         const { Adjustment } = require('../models');
-        return await Adjustment.findOneAndDelete({
+        const adjustment = await Adjustment.findOne({
             _id: adjustmentId,
             entity_type: 'supplier',
             entity_id: supplierId
         });
+
+        if (!adjustment) {
+            return null;
+        }
+
+        // Soft delete
+        adjustment.is_deleted = true;
+        adjustment.deleted_at = new Date();
+        await adjustment.save();
+
+        return adjustment;
     }
 
     // Report generation methods
@@ -767,6 +838,63 @@ class SupplierService {
                 paymentsCount: payments.length
             },
             dateRangeText
+        };
+    }
+
+    /**
+     * Compute supplier totals (balance, due, paid)
+     * @param {string} supplierId - Supplier ID
+     * @returns {Promise<Object>} Totals object with balance, totalDue, totalPaid
+     */
+    static async computeSupplierTotals(supplierId) {
+        const { Adjustment, SupplierOpeningBalance } = require('../models');
+
+        // Get deliveries for this supplier
+        const deliveries = await Delivery.find({
+            supplier_id: supplierId,
+            is_deleted: { $ne: true }
+        });
+
+        // Calculate total due (what we owe supplier)
+        const totalDue = deliveries.reduce((sum, delivery) => {
+            const netQuantity = toNumber(delivery.car_volume) - toNumber(delivery.discount_volume);
+            const materialPrice = toNumber(delivery.material_price_at_time);
+            return sum + (netQuantity * materialPrice);
+        }, 0);
+
+        // Get payments made to supplier
+        const payments = await SupplierPayment.find({
+            supplier_id: supplierId,
+            is_deleted: { $ne: true }
+        });
+        const totalPaid = payments.reduce((sum, p) => sum + toNumber(p.amount), 0);
+
+        // Get adjustments
+        const adjustments = await Adjustment.find({
+            entity_type: 'supplier',
+            entity_id: supplierId,
+            is_deleted: { $ne: true }
+        });
+        const totalAdjustments = adjustments.reduce((sum, a) => sum + toNumber(a.amount), 0);
+
+        // Get project-based opening balances
+        const openingBalances = await SupplierOpeningBalance.find({
+            supplier_id: supplierId,
+            is_deleted: false
+        });
+        
+        // Sum all project-based opening balances
+        const openingBalance = openingBalances.reduce((sum, ob) => sum + toNumber(ob.amount), 0);
+        
+        // Calculate balance (including opening balance and adjustments)
+        const balance = openingBalance + totalDue + totalAdjustments - totalPaid;
+
+        return {
+            openingBalance: Math.round(openingBalance * 100) / 100,
+            totalDue: Math.round(totalDue * 100) / 100,
+            totalPaid: Math.round(totalPaid * 100) / 100,
+            totalAdjustments: Math.round(totalAdjustments * 100) / 100,
+            balance: Math.round(balance * 100) / 100
         };
     }
 }

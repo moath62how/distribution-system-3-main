@@ -23,12 +23,27 @@ const employeePaymentSchema = new mongoose.Schema({
     note: {
         type: String
     },
-    payment_image: {
-        type: String // Base64 encoded image
+    payment_image_url: {
+        type: String // Cloudinary URL
+    },
+    payment_image_public_id: {
+        type: String // Cloudinary Public ID (for deletion)
+    },
+    payment_image_thumbnail: {
+        type: String // Cloudinary Thumbnail URL
     },
     paid_at: {
         type: Date,
         default: Date.now
+    },
+    // Soft delete fields
+    is_deleted: {
+        type: Boolean,
+        default: false
+    },
+    deleted_at: {
+        type: Date,
+        default: null
     }
 }, {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },

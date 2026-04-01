@@ -2,7 +2,11 @@
 document.addEventListener('DOMContentLoaded', function () {
     const placeholder = document.getElementById('sidebar-placeholder');
     if (placeholder) {
-        fetch('/sidebar.html')
+        // Check if we should load Material sidebar (check if material-theme.css is loaded)
+        const useMaterialSidebar = document.querySelector('link[href*="material-theme.css"]') !== null;
+        const sidebarFile = useMaterialSidebar ? '/sidebar-material.html' : '/sidebar.html';
+        
+        fetch(sidebarFile)
             .then(response => response.text())
             .then(html => {
                 placeholder.innerHTML = html;

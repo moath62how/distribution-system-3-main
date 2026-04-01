@@ -1,5 +1,6 @@
 const employeeService = require('../services/employeeService');
 const { Adjustment } = require('../models');
+const CloudinaryService = require('../services/cloudinaryService');
 
 class EmployeesController {
     // Get all employees
@@ -53,7 +54,27 @@ class EmployeesController {
                 assigned_projects: assigned_projects || []
             });
 
+            // Send success response immediately
             res.status(201).json(employee);
+
+            // Log audit event asynchronously
+            setImmediate(async () => {
+                try {
+                    const authService = require('../services/authService');
+                    await authService.logAuditEvent(
+                        req.user.id,
+                        'create',
+                        'Employee',
+                        employee.id,
+                        null,
+                        employee,
+                        req,
+                        name.trim()
+                    );
+                } catch (auditError) {
+                    console.error('❌ Audit logging failed for employee creation:', auditError.message);
+                }
+            });
         } catch (err) {
             if (err.code === 11000) {
                 return res.status(400).json({ message: 'اسم الموظف موجود بالفعل' });
@@ -92,6 +113,19 @@ class EmployeesController {
                 return res.status(404).json({ message: 'الموظف غير موجود' });
             }
 
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'update',
+                'Employee',
+                req.params.id,
+                null,
+                employee.employee,
+                req,
+                name.trim()
+            );
+
             res.json(employee);
         } catch (err) {
             if (err.code === 11000) {
@@ -111,6 +145,25 @@ class EmployeesController {
             }
 
             res.json({ message: 'تم حذف الموظف بنجاح' });
+
+            // Log audit event asynchronously
+            setImmediate(async () => {
+                try {
+                    const authService = require('../services/authService');
+                    await authService.logAuditEvent(
+                        req.user?.id,
+                        'delete',
+                        'Employee',
+                        req.params.id,
+                        employee,
+                        null,
+                        req,
+                        employee.name
+                    );
+                } catch (auditError) {
+                    console.error('❌ Audit logging failed for employee deletion:', auditError.message);
+                }
+            });
         } catch (err) {
             if (err.message.includes('لا يمكن حذف الموظف')) {
                 return res.status(400).json({ message: err.message });
@@ -146,14 +199,49 @@ class EmployeesController {
                 return res.status(400).json({ message: 'مبلغ الدفع مطلوب ويجب أن يكون أكبر من صفر' });
             }
 
+            let imageData = null;
+            
+            if (payment_image) {
+                try {
+                    imageData = await CloudinaryService.uploadBase64Image(
+                        payment_image,
+                        `employees/${req.params.id}/payments`
+                    );
+                } catch (error) {
+                    console.error('Image upload failed:', error);
+                    return res.status(400).json({ 
+                        message: 'فشل رفع الصورة: ' + error.message 
+                    });
+                }
+            }
+
             const payment = await employeeService.addEmployeePayment(req.params.id, {
                 amount: parseFloat(amount),
                 method: method?.trim(),
                 details: details?.trim(),
                 note: note?.trim(),
-                payment_image,
+                payment_image_url: imageData?.url,
+                payment_image_public_id: imageData?.publicId,
+                payment_image_thumbnail: imageData?.thumbnailUrl,
                 paid_at: paid_at ? new Date(paid_at) : new Date()
             });
+
+            // Get employee name for audit log
+            const employee = await employeeService.getEmployeeById(req.params.id);
+            const employeeName = employee && employee.employee ? employee.employee.name : 'موظف';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'create',
+                'EmployeePayment',
+                payment.id || payment._id,
+                null,
+                payment,
+                req,
+                `دفعة من ${employeeName}`
+            );
 
             res.status(201).json(payment);
         } catch (err) {
@@ -170,22 +258,68 @@ class EmployeesController {
                 return res.status(400).json({ message: 'مبلغ الدفع مطلوب ويجب أن يكون أكبر من صفر' });
             }
 
+            let imageData = null;
+            
+            if (payment_image) {
+                try {
+                    const oldPayment = await employeeService.getPaymentById(req.params.id, req.params.paymentId);
+                    
+                    imageData = await CloudinaryService.uploadBase64Image(
+                        payment_image,
+                        `employees/${req.params.id}/payments`
+                    );
+                    
+                    if (oldPayment && oldPayment.payment_image_public_id) {
+                        await CloudinaryService.deleteImage(oldPayment.payment_image_public_id);
+                    }
+                } catch (error) {
+                    console.error('Image upload failed:', error);
+                    return res.status(400).json({ 
+                        message: 'فشل رفع الصورة: ' + error.message 
+                    });
+                }
+            }
+
+            const updateData = {
+                amount: parseFloat(amount),
+                method: method?.trim(),
+                details: details?.trim(),
+                note: note?.trim(),
+                paid_at: paid_at ? new Date(paid_at) : undefined
+            };
+
+            if (imageData) {
+                updateData.payment_image_url = imageData.url;
+                updateData.payment_image_public_id = imageData.publicId;
+                updateData.payment_image_thumbnail = imageData.thumbnailUrl;
+            }
+
             const payment = await employeeService.updateEmployeePayment(
                 req.params.id,
                 req.params.paymentId,
-                {
-                    amount: parseFloat(amount),
-                    method: method?.trim(),
-                    details: details?.trim(),
-                    note: note?.trim(),
-                    payment_image,
-                    paid_at: paid_at ? new Date(paid_at) : undefined
-                }
+                updateData
             );
 
             if (!payment) {
                 return res.status(404).json({ message: 'الدفعة غير موجودة' });
             }
+
+            // Get employee name for audit log
+            const employee = await employeeService.getEmployeeById(req.params.id);
+            const employeeName = employee && employee.employee ? employee.employee.name : 'موظف';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'update',
+                'EmployeePayment',
+                req.params.paymentId,
+                null,
+                payment,
+                req,
+                `دفعة من ${employeeName}`
+            );
 
             res.json(payment);
         } catch (err) {
@@ -204,6 +338,23 @@ class EmployeesController {
             if (!payment) {
                 return res.status(404).json({ message: 'الدفعة غير موجودة' });
             }
+
+            // Get employee name for audit log
+            const employee = await employeeService.getEmployeeById(req.params.id);
+            const employeeName = employee && employee.employee ? employee.employee.name : 'موظف';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'delete',
+                'EmployeePayment',
+                req.params.paymentId,
+                payment.toJSON(),
+                null,
+                req,
+                `دفعة من ${employeeName}`
+            );
 
             res.json({ message: 'تم حذف الدفعة بنجاح' });
         } catch (err) {
@@ -248,6 +399,24 @@ class EmployeesController {
             });
 
             await adjustment.save();
+
+            // Get employee name for audit log
+            const employee = await employeeService.getEmployeeById(req.params.id);
+            const employeeName = employee && employee.employee ? employee.employee.name : 'موظف';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'create',
+                'Adjustment',
+                adjustment.id || adjustment._id,
+                null,
+                adjustment,
+                req,
+                `تسوية من ${employeeName}`
+            );
+
             res.status(201).json(adjustment);
         } catch (err) {
             next(err);
@@ -282,6 +451,23 @@ class EmployeesController {
                 return res.status(404).json({ message: 'التسوية غير موجودة' });
             }
 
+            // Get employee name for audit log
+            const employee = await employeeService.getEmployeeById(req.params.id);
+            const employeeName = employee && employee.employee ? employee.employee.name : 'موظف';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'update',
+                'Adjustment',
+                req.params.adjustmentId,
+                null,
+                adjustment,
+                req,
+                `تسوية من ${employeeName}`
+            );
+
             res.json(adjustment);
         } catch (err) {
             next(err);
@@ -291,7 +477,7 @@ class EmployeesController {
     // Delete employee adjustment
     async deleteEmployeeAdjustment(req, res, next) {
         try {
-            const adjustment = await Adjustment.findOneAndDelete({
+            const adjustment = await Adjustment.findOne({
                 _id: req.params.adjustmentId,
                 entity_type: 'employee',
                 entity_id: req.params.id
@@ -301,7 +487,35 @@ class EmployeesController {
                 return res.status(404).json({ message: 'التسوية غير موجودة' });
             }
 
+            // Soft delete
+            adjustment.is_deleted = true;
+            adjustment.deleted_at = new Date();
+            await adjustment.save();
+
             res.json({ message: 'تم حذف التسوية بنجاح' });
+
+            // Get employee name for audit log
+            const employee = await employeeService.getEmployeeById(req.params.id);
+            const employeeName = employee && employee.employee ? employee.employee.name : 'موظف';
+
+            // Log audit event asynchronously
+            setImmediate(async () => {
+                try {
+                    const authService = require('../services/authService');
+                    await authService.logAuditEvent(
+                        req.user.id,
+                        'delete',
+                        'Adjustment',
+                        req.params.adjustmentId,
+                        adjustment.toJSON(),
+                        null,
+                        req,
+                        `تسوية من ${employeeName}`
+                    );
+                } catch (auditError) {
+                    console.error('❌ Audit logging failed:', auditError.message);
+                }
+            });
         } catch (err) {
             next(err);
         }

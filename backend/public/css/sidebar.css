@@ -1,149 +1,153 @@
-/* Sidebar styles */
+/* Modern Sidebar - Clean & Professional */
 .sidebar {
     position: fixed;
     top: 0;
     right: 0;
-    width: 225px;
+    width: 288px;
     height: 100vh;
-    background: #1f365c;
-    color: #fff;
-    box-shadow: -2px 0 16px #0001;
+    background: white;
+    color: #1e293b;
+    box-shadow: -1px 0 0 #e2e8f0;
     display: flex;
     flex-direction: column;
     z-index: 300;
-    transition: right 0.25s;
-    overflow: hidden; /* Prevent overall sidebar scroll */
+    transition: right 0.3s;
+    overflow: hidden;
+    border-left: 1px solid #e2e8f0;
 }
 
+/* Header/Logo Area */
 .sidebar .app-title {
-    font-size: 1.38rem;
+    font-size: 1.25rem;
     font-weight: 700;
     text-align: center;
-    margin: 23px 0 20px 0;
-    letter-spacing: 1px;
-    flex-shrink: 0; /* Prevent title from shrinking */
+    margin: 0;
+    padding: 2rem;
+    letter-spacing: -0.025em;
+    flex-shrink: 0;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.sidebar .app-title::before {
+    content: '🏢';
+    font-size: 2rem;
 }
 
 /* User section */
 .user-section {
-    background: #1a2f4a;
-    padding: 15px 20px;
-    margin-bottom: 10px;
-    border-bottom: 1px solid #2a4a6b;
-    flex-shrink: 0; /* Prevent user section from shrinking */
+    background: #f8fafc;
+    padding: 1rem 1.5rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #e2e8f0;
+    flex-shrink: 0;
 }
 
 .user-info {
-    font-size: 0.9rem;
-    color: #b8c5d6;
-    margin-bottom: 8px;
+    font-size: 0.875rem;
+    color: #64748b;
+    margin-bottom: 0.75rem;
     text-align: center;
+    font-weight: 500;
 }
 
 .logout-btn {
     width: 100%;
-    padding: 8px 12px;
-    background: #dc3545;
+    padding: 0.625rem 1rem;
+    background: #ef4444;
     color: white;
     border: none;
-    border-radius: 4px;
-    font-size: 0.85rem;
+    border-radius: 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 700;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all 0.3s;
 }
 
 .logout-btn:hover {
-    background: #c82333;
+    background: #dc2626;
+    transform: translateY(-1px);
 }
 
+.logout-btn:active {
+    transform: scale(0.95);
+}
+
+/* Navigation Links */
 .sidebar ul {
     list-style: none;
-    padding: 0;
+    padding: 1rem;
     margin: 0;
-    flex: 1; /* Take all remaining space */
+    flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    min-height: 0; /* Allow flex item to shrink */
-    /* Add padding at the bottom for better UX */
-    padding-bottom: 20px;
-    /* Modern scrollbar styling */
-    scrollbar-width: thin;
-    scrollbar-color: transparent #2a4a6b;
-    transition: scrollbar-color 0.3s ease;
+    min-height: 0;
+    padding-bottom: 1.5rem;
 }
 
-.sidebar ul:hover {
-    scrollbar-color: rgba(74, 111, 165, 0.6) #2a4a6b;
-}
-
-/* Webkit scrollbar styling for modern browsers */
 .sidebar ul::-webkit-scrollbar {
-    width: 6px;
+    width: 4px;
 }
 
 .sidebar ul::-webkit-scrollbar-track {
     background: transparent;
-    border-radius: 3px;
 }
 
 .sidebar ul::-webkit-scrollbar-thumb {
-    background: transparent;
-    border-radius: 3px;
-    transition: background 0.3s ease;
-}
-
-.sidebar ul:hover::-webkit-scrollbar-thumb {
-    background: rgba(74, 111, 165, 0.6);
-}
-
-.sidebar ul::-webkit-scrollbar-thumb:hover {
-    background: rgba(74, 111, 165, 0.8);
-}
-
-.sidebar ul::-webkit-scrollbar-thumb:active {
-    background: rgba(58, 95, 149, 0.9);
+    background: #e2e8f0;
+    border-radius: 10px;
 }
 
 .sidebar li {
-    margin: 0;
+    margin: 0 0 0.25rem 0;
     padding: 0;
 }
 
 .sidebar li.section-divider {
-    color: #8fa4b8;
-    font-size: 0.85rem;
-    font-weight: 600;
-    padding: 12px 29px 8px 29px;
-    margin-top: 15px;
-    border-top: 1px solid #2a4a6b;
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 1rem 1rem 0.5rem 1rem;
+    margin-top: 1rem;
+    border-top: 1px solid #f1f5f9;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.05em;
 }
 
 .sidebar a {
-    display: block;
-    color: #e4e9f6;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #64748b;
     text-decoration: none;
-    font-size: 1.07rem;
-    padding: 15px 29px;
+    font-size: 0.9375rem;
+    padding: 0.875rem 1rem;
+    border-radius: 0.75rem;
     border-right: 4px solid transparent;
-    transition:
-        background 0.13s,
-        color 0.13s,
-        border-color 0.13s;
+    transition: all 0.2s;
     font-weight: 500;
 }
 
-.sidebar a.active,
-.sidebar a:focus {
-    background: #284b71;
-    color: #fff;
-    border-right: 4px solid #3e82dc;
+.sidebar a i {
+    font-size: 1.125rem;
+    width: 20px;
+    text-align: center;
+}
+
+.sidebar a.active {
+    background: rgba(14, 165, 233, 0.05);
+    color: #0ea5e9;
+    border-right: 4px solid #0ea5e9;
+    font-weight: 700;
 }
 
 .sidebar a:hover {
-    background: #27406b;
-    color: #f5faff;
+    background: #f8fafc;
+    color: #1e293b;
 }
 
 /* Sidebar overlay for mobile */
@@ -171,13 +175,13 @@
     width: 40px;
     height: 40px;
     z-index: 310;
-    background: #1f365c;
-    border-radius: 7px;
+    background: white;
+    border-radius: 0.75rem;
     cursor: pointer;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 7px #18518c17;
-    border: none;
+    box-shadow: 0 2px 15px -3px rgba(0, 0, 0, 0.07);
+    border: 1px solid #e2e8f0;
 }
 
 .hamburger span,
@@ -185,8 +189,8 @@
 .hamburger span:after {
     display: block;
     width: 24px;
-    height: 3.3px;
-    background: #fff;
+    height: 3px;
+    background: #1e293b;
     border-radius: 2px;
     position: absolute;
     transition: all 0.3s;
@@ -225,20 +229,20 @@
 
 @media (max-width: 900px) {
     .sidebar {
-        width: 190px;
+        width: 240px;
     }
 }
 
 @media (max-width: 700px) {
     .sidebar {
-        right: -210px;
-        width: 180px;
+        right: -260px;
+        width: 240px;
         box-shadow: none;
     }
 
     .sidebar.open {
         right: 0;
-        box-shadow: -2px 0 14px #0003;
+        box-shadow: -2px 0 20px rgba(0, 0, 0, 0.15);
     }
 
     .hamburger {

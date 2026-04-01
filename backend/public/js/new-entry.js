@@ -80,7 +80,10 @@ async function loadDropdowns() {
 // Get crusher price by material
 function getCrusherPriceByMaterial(crusherId, material) {
     const crusher = crushersData.find(c => c.id === crusherId);
-    if (!crusher) return 0;
+    if (!crusher) {
+        console.warn('Crusher not found:', crusherId);
+        return 0;
+    }
 
     const materialMap = {
         'رمل': 'sand_price',
@@ -90,7 +93,19 @@ function getCrusherPriceByMaterial(crusherId, material) {
         'سن 6 بودرة': 'aggregate6_powder_price'
     };
 
-    return crusher[materialMap[material]] || 0;
+    const priceField = materialMap[material];
+    const price = crusher[priceField] || 0;
+    
+    console.log('getCrusherPriceByMaterial:', {
+        crusherId,
+        crusherName: crusher.name,
+        material,
+        priceField,
+        price,
+        crusherData: crusher
+    });
+    
+    return price;
 }
 
 // Get supplier price by material
@@ -121,6 +136,7 @@ function getSupplierPriceByMaterial(supplierId, material) {
 function updateSupplierMaterials() {
     const supplierId = document.getElementById('supplier').value;
     const materialSelect = document.getElementById('material');
+    const currentValue = materialSelect.value; // Save current selection
 
     // Clear current options
     materialSelect.innerHTML = '<option value="">اختر النوع</option>';
@@ -134,6 +150,11 @@ function updateSupplierMaterials() {
                 opt.textContent = material.name;
                 materialSelect.appendChild(opt);
             });
+            
+            // Restore previous selection if it exists in the new options
+            if (currentValue) {
+                materialSelect.value = currentValue;
+            }
         }
     }
 }
@@ -141,6 +162,8 @@ function updateSupplierMaterials() {
 // Update crusher materials dropdown (default materials)
 function updateCrusherMaterials() {
     const materialSelect = document.getElementById('material');
+    const currentValue = materialSelect.value; // Save current selection
+    
     materialSelect.innerHTML = `
         <option value="">اختر النوع</option>
         <option value="رمل">رمل</option>
@@ -149,6 +172,11 @@ function updateCrusherMaterials() {
         <option value="سن 3">سن 3</option>
         <option value="سن 6 بودرة">سن 6 بودرة</option>
     `;
+    
+    // Restore previous selection if it exists in the new options
+    if (currentValue) {
+        materialSelect.value = currentValue;
+    }
 }
 
 function updateCrusherPrice() {
@@ -210,6 +238,7 @@ function checkPriceWarning() {
     const supplierType = document.querySelector('input[name="supplierType"]:checked')?.value;
     const clientPrice = parseFloat(document.getElementById('price').value) || 0;
     const material = document.getElementById('material').value;
+    const quantity = parseFloat(document.getElementById('quantity').value) || 0;
 
     // Get warning container or create it if it doesn't exist
     let warningDiv = document.getElementById('priceWarning');
@@ -220,54 +249,71 @@ function checkPriceWarning() {
         document.getElementById('price').parentElement.appendChild(warningDiv);
     }
 
-    if (!clientPrice || clientPrice <= 0 || !material) {
+    if (!clientPrice || clientPrice <= 0 || !material || !quantity || quantity <= 0) {
         warningDiv.style.display = 'none';
         return;
     }
 
-    let materialCost = 0;
-    let transferCost = 0;
+    let materialCostPerUnit = 0;
+    let transferCostPerUnit = 0;
 
     if (supplierType === 'crusher') {
         const crusherId = document.getElementById('crusher').value;
         if (crusherId) {
-            materialCost = getCrusherPriceByMaterial(crusherId, material);
-            transferCost = parseFloat(document.getElementById('contractorCharge').value) || 0;
+            materialCostPerUnit = getCrusherPriceByMaterial(crusherId, material);
+            transferCostPerUnit = parseFloat(document.getElementById('contractorCharge').value) || 0;
         }
     } else if (supplierType === 'supplier') {
         const supplierId = document.getElementById('supplier').value;
         if (supplierId) {
-            materialCost = getSupplierPriceByMaterial(supplierId, material);
-            transferCost = parseFloat(document.getElementById('supplierTransferPrice').value) || 0;
+            materialCostPerUnit = getSupplierPriceByMaterial(supplierId, material);
+            transferCostPerUnit = parseFloat(document.getElementById('supplierTransferPrice').value) || 0;
         }
     }
 
-    const totalCost = materialCost + transferCost;
-    const profit = clientPrice - totalCost;
-    const profitMargin = totalCost > 0 ? (profit / totalCost) * 100 : 0;
+    const totalCostPerUnit = materialCostPerUnit + transferCostPerUnit;
+    const profitPerUnit = clientPrice - totalCostPerUnit;
+    const profitMargin = totalCostPerUnit > 0 ? (profitPerUnit / totalCostPerUnit) * 100 : 0;
+
+    // Calculate totals for the entire delivery
+    const totalRevenue = clientPrice * quantity;
+    const totalCost = totalCostPerUnit * quantity;
+    const totalProfit = profitPerUnit * quantity;
 
     let warningMessage = '';
     let warningIcon = '⚠️';
 
-    if (clientPrice < totalCost) {
+    if (clientPrice < totalCostPerUnit) {
         // Loss scenario
-        warningMessage = `${warningIcon} <strong>تحذير:</strong> السعر للعميل (${clientPrice.toFixed(2)} ج.م) أقل من التكلفة الإجمالية (${totalCost.toFixed(2)} ج.م). `;
-        warningMessage += `<br><strong>خسارة:</strong> ${Math.abs(profit).toFixed(2)} ج.م (${Math.abs(profitMargin).toFixed(1)}%)`;
+        warningMessage = `${warningIcon} <strong>تحذير: خسارة!</strong><br>`;
+        warningMessage += `<strong>سعر العميل:</strong> ${clientPrice.toFixed(2)} ج.م/وحدة<br>`;
+        warningMessage += `<strong>التكلفة:</strong> ${totalCostPerUnit.toFixed(2)} ج.م/وحدة (مادة: ${materialCostPerUnit.toFixed(2)} + نقل: ${transferCostPerUnit.toFixed(2)})<br>`;
+        warningMessage += `<strong>الخسارة للوحدة:</strong> ${Math.abs(profitPerUnit).toFixed(2)} ج.م (${Math.abs(profitMargin).toFixed(1)}%)<br>`;
+        warningMessage += `<strong>إجمالي الخسارة:</strong> ${Math.abs(totalProfit).toFixed(2)} ج.م`;
         warningDiv.style.background = '#f8d7da';
         warningDiv.style.borderColor = '#dc3545';
         warningDiv.style.color = '#721c24';
     } else if (profitMargin < 15) {
         // Low profit margin scenario
-        warningMessage = `${warningIcon} <strong>تحذير:</strong> هامش الربح منخفض (${profitMargin.toFixed(1)}%). `;
-        warningMessage += `<br><strong>الربح:</strong> ${profit.toFixed(2)} ج.م من إجمالي تكلفة ${totalCost.toFixed(2)} ج.م`;
-        warningMessage += `<br><em>يُنصح بهامش ربح لا يقل عن 15%</em>`;
+        warningMessage = `${warningIcon} <strong>تحذير: هامش ربح منخفض (${profitMargin.toFixed(1)}%)</strong><br>`;
+        warningMessage += `<strong>سعر العميل:</strong> ${clientPrice.toFixed(2)} ج.م/وحدة<br>`;
+        warningMessage += `<strong>التكلفة:</strong> ${totalCostPerUnit.toFixed(2)} ج.م/وحدة (مادة: ${materialCostPerUnit.toFixed(2)} + نقل: ${transferCostPerUnit.toFixed(2)})<br>`;
+        warningMessage += `<strong>الربح للوحدة:</strong> ${profitPerUnit.toFixed(2)} ج.م (${profitMargin.toFixed(1)}%)<br>`;
+        warningMessage += `<strong>إجمالي الربح:</strong> ${totalProfit.toFixed(2)} ج.م<br>`;
+        warningMessage += `<em>يُنصح بهامش ربح لا يقل عن 15%</em>`;
         warningDiv.style.background = '#fff3cd';
         warningDiv.style.borderColor = '#ffc107';
         warningDiv.style.color = '#856404';
     } else {
         // Good profit margin
-        warningDiv.style.display = 'none';
-        return;
+        warningMessage = `✅ <strong>هامش ربح جيد (${profitMargin.toFixed(1)}%)</strong><br>`;
+        warningMessage += `<strong>سعر العميل:</strong> ${clientPrice.toFixed(2)} ج.م/وحدة<br>`;
+        warningMessage += `<strong>التكلفة:</strong> ${totalCostPerUnit.toFixed(2)} ج.م/وحدة (مادة: ${materialCostPerUnit.toFixed(2)} + نقل: ${transferCostPerUnit.toFixed(2)})<br>`;
+        warningMessage += `<strong>الربح للوحدة:</strong> ${profitPerUnit.toFixed(2)} ج.م (${profitMargin.toFixed(1)}%)<br>`;
+        warningMessage += `<strong>إجمالي الربح:</strong> ${totalProfit.toFixed(2)} ج.م`;
+        warningDiv.style.background = '#d4edda';
+        warningDiv.style.borderColor = '#28a745';
+        warningDiv.style.color = '#155724';
     }
 
     warningDiv.innerHTML = warningMessage;
@@ -367,6 +413,7 @@ function setupEventListeners() {
 
     // Add price validation warning
     document.getElementById('price').addEventListener('input', checkPriceWarning);
+    document.getElementById('quantity').addEventListener('input', checkPriceWarning);
     document.getElementById('contractorCharge').addEventListener('input', checkPriceWarning);
     document.getElementById('supplierTransferPrice').addEventListener('input', checkPriceWarning);
 
@@ -502,50 +549,29 @@ function setupEventListeners() {
                 confirmButtonText: 'حسناً'
             });
 
-            // Reset form but preserve dropdown selections
-            const preservedValues = {
-                client: document.getElementById('client').value,
-                crusher: document.getElementById('crusher').value,
-                supplier: document.getElementById('supplier').value,
-                wheelContractor: supplierType === 'crusher' ? document.getElementById('wheelContractor').value : '', // Only preserve for crushers
-                supplierType: document.querySelector('input[name="supplierType"]:checked').value
-            };
-
+            // Reset form completely (no preservation of selections)
             this.reset();
-
-            // Restore preserved values
-            document.getElementById('client').value = preservedValues.client;
-
-            // Restore supplier type and show/hide fields accordingly
-            if (preservedValues.supplierType === 'crusher') {
-                document.getElementById('supplierTypeCrusher').checked = true;
-                document.getElementById('crusher').value = preservedValues.crusher;
-                document.getElementById('wheelContractor').value = preservedValues.wheelContractor;
-                crusherGroup.style.display = '';
-                supplierGroup.style.display = 'none';
-                showCarFields(true);
-                showContractorFields(true);
-                showDiscountFields(true);
-                showSupplierTransferField(false);
-                updateUnitLabels(true); // Cubic meters for crushers
-                updateCrusherMaterials();
-            } else {
-                document.getElementById('supplierTypeSupplier').checked = true;
-                document.getElementById('supplier').value = preservedValues.supplier;
-                crusherGroup.style.display = 'none';
-                supplierGroup.style.display = '';
-                showCarFields(false);
-                showContractorFields(false);
-                showDiscountFields(false);
-                showSupplierTransferField(true);
-                updateUnitLabels(false); // Units for suppliers
-                updateSupplierMaterials();
-            }
-
-            // Hide discount field and reset price display
+            
+            // Reset to default state (crusher mode)
+            document.getElementById('supplierTypeCrusher').checked = true;
+            crusherGroup.style.display = '';
+            supplierGroup.style.display = 'none';
+            showCarFields(true);
+            showContractorFields(true);
+            showDiscountFields(true);
+            showSupplierTransferField(false);
+            updateUnitLabels(true);
+            updateCrusherMaterials();
+            
+            // Hide discount field
             deductAmountField.style.display = 'none';
             document.getElementById('deductAmount').required = false;
-            updateCrusherPrice(); // Update price display after form reset
+            
+            // Hide price warning
+            const warningDiv = document.getElementById('priceWarning');
+            if (warningDiv) {
+                warningDiv.style.display = 'none';
+            }
 
         } catch (errResp) {
             console.error(errResp);
@@ -706,8 +732,8 @@ document.addEventListener('DOMContentLoaded', () => {
         updateUnitLabels(false); // Units for suppliers
     }
 
-    // Auto refresh dropdowns every 30 seconds
-    setInterval(() => {
-        loadDropdowns();
-    }, 30000);
+    // Auto refresh dropdowns disabled - causes form reset issues
+    // setInterval(() => {
+    //     loadDropdowns();
+    // }, 30000);
 });

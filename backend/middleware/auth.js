@@ -93,40 +93,65 @@ const requireRole = (allowedRoles) => {
 };
 
 // Audit logging middleware - logs all operations
-const auditLogger = (req, res, next) => {
-  // Store original res.json to intercept responses
-  const originalJson = res.json;
+const auditLogger = async (req, res, next) => {
+  // Capture the original json method
+  const originalJson = res.json.bind(res);
+  
+  // Override res.json to capture response
+  res.json = function(data) {
+    // Log before sending response
+    if (req.user && res.statusCode >= 200 && res.statusCode < 300) {
+      const actionType = getActionType(req.method);
+      const entityType = getEntityType(req.path);
 
-  res.json = function (data) {
-    // Log the operation after successful completion
-    if (req.user && res.statusCode < 400) {
-      setImmediate(async () => {
-        try {
-          const actionType = getActionType(req.method);
-          const entityType = getEntityType(req.path);
-
-          if (actionType && entityType) {
-            await authService.logAuditEvent(
-              req.user.id,
-              actionType,
-              entityType,
-              req.params.id || null,
-              req.body.oldValues || null,
-              req.body.newValues || data,
-              req
-            );
-          }
-        } catch (error) {
+      if (actionType && entityType) {
+        // Extract entity name from response or request
+        const entityName = getEntityName(data, req.body, entityType);
+        const entityId = req.params.id || req.params.paymentId || req.params.adjustmentId || req.params.materialId || (data && data.id) || (data && data._id);
+        
+        // Log asynchronously but don't wait
+        authService.logAuditEvent(
+          req.user.id,
+          actionType,
+          entityType,
+          entityId,
+          null,
+          data,
+          req,
+          entityName
+        ).catch(error => {
           console.error('Failed to log audit event:', error);
-        }
-      });
+        });
+      }
     }
 
-    // Call original json method
-    originalJson.call(this, data);
+    // Send the response
+    return originalJson(data);
   };
 
   next();
+};
+
+// Helper function to extract entity name
+const getEntityName = (responseData, requestBody, entityType) => {
+  // Try response data first
+  if (responseData && typeof responseData === 'object') {
+    if (responseData.name) return responseData.name;
+    if (responseData.title) return responseData.title;
+    
+    // Check nested objects
+    const lowerType = entityType.toLowerCase();
+    if (responseData[lowerType] && responseData[lowerType].name) {
+      return responseData[lowerType].name;
+    }
+  }
+  
+  // Try request body
+  if (requestBody && requestBody.name) {
+    return requestBody.name;
+  }
+  
+  return null;
 };
 
 // Helper function to determine action type from HTTP method
@@ -148,12 +173,29 @@ const getEntityType = (path) => {
       'clients': 'Client',
       'crushers': 'Crusher',
       'suppliers': 'Supplier',
+      'contractors': 'Contractor',
       'employees': 'Employee',
       'deliveries': 'Delivery',
       'administration': 'Administration',
       'projects': 'Project',
+      'expenses': 'Expense',
       'users': 'User'
     };
+    
+    // Check for sub-resources (payments, adjustments, materials)
+    if (pathSegments.length >= 3) {
+      const subResourceMap = {
+        'payments': 'Payment',
+        'adjustments': 'Adjustment',
+        'materials': 'Material',
+        'attendance': 'Attendance'
+      };
+      
+      if (subResourceMap[pathSegments[2]]) {
+        return subResourceMap[pathSegments[2]];
+      }
+    }
+    
     return entityMap[pathSegments[1]] || pathSegments[1];
   }
   return null;

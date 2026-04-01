@@ -231,8 +231,17 @@ function setupEventHandlers() {
     });
 
     // Add client form
-    document.getElementById('addClientForm').addEventListener('submit', async (e) => {
+    let isSubmittingClient = false;
+    const addClientForm = document.getElementById('addClientForm');
+    
+    addClientForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        // Prevent double submission
+        if (isSubmittingClient) {
+            console.log('Already submitting, please wait...');
+            return;
+        }
 
         const formData = new FormData(e.target);
         const clientData = {
@@ -241,17 +250,48 @@ function setupEventHandlers() {
             opening_balance: parseFloat(formData.get('opening_balance')) || 0
         };
 
+        isSubmittingClient = true;
+        const submitButton = e.target.querySelector('button[type="submit"]');
+        const originalButtonText = submitButton ? submitButton.textContent : 'حفظ';
+        
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.textContent = 'جاري الإضافة...';
+        }
+
         try {
             await createClient(clientData);
-            showMessage('addClientMessage', 'تم إضافة العميل بنجاح', 'success');
+            
+            // Show success message
+            await Swal.fire({
+                title: 'تم بنجاح',
+                text: 'تم إضافة العميل بنجاح',
+                icon: 'success',
+                confirmButtonText: 'موافق',
+                timer: 2000
+            });
 
-            setTimeout(() => {
-                closeModal('addClientModal');
-                loadClients(currentPage);
-                e.target.reset();
-            }, 1000);
+            closeModal('addClientModal');
+            loadClients(currentPage);
+            e.target.reset();
+            
         } catch (error) {
-            showMessage('addClientMessage', error.message, 'error');
+            console.error('Error creating client:', error);
+            
+            // Show error message
+            await Swal.fire({
+                title: 'خطأ',
+                text: error.message || 'فشل في إضافة العميل',
+                icon: 'error',
+                confirmButtonText: 'موافق'
+            });
+        } finally {
+            // Always reset the flag and button state
+            isSubmittingClient = false;
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.textContent = originalButtonText;
+            }
         }
     });
 

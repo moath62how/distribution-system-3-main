@@ -1,5 +1,6 @@
 const administrationService = require('../services/administrationService');
 const { Client, Project } = require('../models');
+const CloudinaryService = require('../services/cloudinaryService');
 
 class AdministrationController {
     // Get all administration entities
@@ -48,7 +49,27 @@ class AdministrationController {
                 status: status || 'Active'
             });
 
+            // Send success response immediately
             res.status(201).json(administration);
+
+            // Log audit event asynchronously
+            setImmediate(async () => {
+                try {
+                    const authService = require('../services/authService');
+                    await authService.logAuditEvent(
+                        req.user.id,
+                        'create',
+                        'Administration',
+                        administration.id,
+                        null,
+                        administration,
+                        req,
+                        name.trim()
+                    );
+                } catch (auditError) {
+                    console.error('❌ Audit logging failed for administration creation:', auditError.message);
+                }
+            });
         } catch (err) {
             if (err.code === 11000) {
                 return res.status(400).json({ message: 'اسم الإدارة موجود بالفعل' });
@@ -82,6 +103,19 @@ class AdministrationController {
                 return res.status(404).json({ message: 'الإدارة غير موجودة' });
             }
 
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'update',
+                'Administration',
+                req.params.id,
+                null,
+                administration.administration,
+                req,
+                name.trim()
+            );
+
             res.json(administration);
         } catch (err) {
             if (err.code === 11000) {
@@ -101,6 +135,25 @@ class AdministrationController {
             }
 
             res.json({ message: 'تم حذف الإدارة بنجاح' });
+
+            // Log audit event asynchronously
+            setImmediate(async () => {
+                try {
+                    const authService = require('../services/authService');
+                    await authService.logAuditEvent(
+                        req.user?.id,
+                        'delete',
+                        'Administration',
+                        req.params.id,
+                        administration,
+                        null,
+                        req,
+                        administration.name
+                    );
+                } catch (auditError) {
+                    console.error('❌ Audit logging failed for administration deletion:', auditError.message);
+                }
+            });
         } catch (err) {
             if (err.message.includes('لا يمكن حذف الإدارة')) {
                 return res.status(400).json({ message: err.message });
@@ -122,14 +175,49 @@ class AdministrationController {
                 return res.status(400).json({ message: 'مبلغ الدفع مطلوب ويجب أن يكون أكبر من صفر' });
             }
 
+            let imageData = null;
+            
+            if (payment_image) {
+                try {
+                    imageData = await CloudinaryService.uploadBase64Image(
+                        payment_image,
+                        `administration/${req.params.id}/payments`
+                    );
+                } catch (error) {
+                    console.error('Image upload failed:', error);
+                    return res.status(400).json({ 
+                        message: 'فشل رفع الصورة: ' + error.message 
+                    });
+                }
+            }
+
             const payment = await administrationService.addAdministrationPayment(req.params.id, {
                 amount: parseFloat(amount),
                 method: method?.trim(),
                 details: details?.trim(),
                 note: note?.trim(),
-                payment_image,
+                payment_image_url: imageData?.url,
+                payment_image_public_id: imageData?.publicId,
+                payment_image_thumbnail: imageData?.thumbnailUrl,
                 paid_at: paid_at ? new Date(paid_at) : new Date()
             });
+
+            // Get administration name for audit log
+            const administration = await administrationService.getAdministrationById(req.params.id);
+            const adminName = administration && administration.administration ? administration.administration.name : 'إدارة';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'create',
+                'AdministrationPayment',
+                payment.id || payment._id,
+                null,
+                payment,
+                req,
+                `دفعة من ${adminName}`
+            );
 
             res.status(201).json(payment);
         } catch (err) {
@@ -146,22 +234,68 @@ class AdministrationController {
                 return res.status(400).json({ message: 'مبلغ الدفع مطلوب ويجب أن يكون أكبر من صفر' });
             }
 
+            let imageData = null;
+            
+            if (payment_image) {
+                try {
+                    const oldPayment = await administrationService.getPaymentById(req.params.id, req.params.paymentId);
+                    
+                    imageData = await CloudinaryService.uploadBase64Image(
+                        payment_image,
+                        `administration/${req.params.id}/payments`
+                    );
+                    
+                    if (oldPayment && oldPayment.payment_image_public_id) {
+                        await CloudinaryService.deleteImage(oldPayment.payment_image_public_id);
+                    }
+                } catch (error) {
+                    console.error('Image upload failed:', error);
+                    return res.status(400).json({ 
+                        message: 'فشل رفع الصورة: ' + error.message 
+                    });
+                }
+            }
+
+            const updateData = {
+                amount: parseFloat(amount),
+                method: method?.trim(),
+                details: details?.trim(),
+                note: note?.trim(),
+                paid_at: paid_at ? new Date(paid_at) : undefined
+            };
+
+            if (imageData) {
+                updateData.payment_image_url = imageData.url;
+                updateData.payment_image_public_id = imageData.publicId;
+                updateData.payment_image_thumbnail = imageData.thumbnailUrl;
+            }
+
             const payment = await administrationService.updateAdministrationPayment(
                 req.params.id,
                 req.params.paymentId,
-                {
-                    amount: parseFloat(amount),
-                    method: method?.trim(),
-                    details: details?.trim(),
-                    note: note?.trim(),
-                    payment_image,
-                    paid_at: paid_at ? new Date(paid_at) : undefined
-                }
+                updateData
             );
 
             if (!payment) {
                 return res.status(404).json({ message: 'الدفعة غير موجودة' });
             }
+
+            // Get administration name for audit log
+            const administration = await administrationService.getAdministrationById(req.params.id);
+            const adminName = administration && administration.administration ? administration.administration.name : 'إدارة';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'update',
+                'AdministrationPayment',
+                req.params.paymentId,
+                null,
+                payment,
+                req,
+                `دفعة من ${adminName}`
+            );
 
             res.json(payment);
         } catch (err) {
@@ -180,6 +314,23 @@ class AdministrationController {
             if (!payment) {
                 return res.status(404).json({ message: 'الدفعة غير موجودة' });
             }
+
+            // Get administration name for audit log
+            const administration = await administrationService.getAdministrationById(req.params.id);
+            const adminName = administration && administration.administration ? administration.administration.name : 'إدارة';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'delete',
+                'AdministrationPayment',
+                req.params.paymentId,
+                payment.toJSON(),
+                null,
+                req,
+                `دفعة من ${adminName}`
+            );
 
             res.json({ message: 'تم حذف الدفعة بنجاح' });
         } catch (err) {

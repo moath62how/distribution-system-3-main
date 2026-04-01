@@ -1,17 +1,21 @@
 const { Administration, AdministrationPayment, CapitalInjection, Withdrawal } = require('../models');
+const CloudinaryService = require('./cloudinaryService');
 
 const toNumber = (v) => Number(v || 0);
 
 class AdministrationService {
     static async getAllAdministration() {
-        const administration = await Administration.find().sort({ name: 1 });
+        const administration = await Administration.find({ is_deleted: { $ne: true } }).sort({ name: 1 });
 
         // Calculate totals for each administration entity
         const result = await Promise.all(
             administration.map(async (admin) => {
                 try {
                     // Get payments TO administration (money we paid them)
-                    const payments = await AdministrationPayment.find({ administration_id: admin._id });
+                    const payments = await AdministrationPayment.find({ 
+                        administration_id: admin._id,
+                        is_deleted: { $ne: true }
+                    });
                     const totalPayments = payments.reduce((sum, p) => sum + toNumber(p.amount), 0);
 
                     // Get capital injections (money they put into projects - we owe them)
@@ -74,8 +78,10 @@ class AdministrationService {
         }
 
         // Get related data
-        const payments = await AdministrationPayment.find({ administration_id: id })
-            .sort({ paid_at: -1 });
+        const payments = await AdministrationPayment.find({ 
+            administration_id: id,
+            is_deleted: { $ne: true }
+        }).sort({ paid_at: -1 });
 
         const capitalInjections = await CapitalInjection.find({ administration_id: id })
             .populate('project_id', 'name')
@@ -110,7 +116,8 @@ class AdministrationService {
                 method: p.method,
                 details: p.details,
                 note: p.note,
-                payment_image: p.payment_image,
+                payment_image_url: p.payment_image_url,
+                payment_image_thumbnail: p.payment_image_thumbnail,
                 paid_at: p.paid_at,
                 created_at: p.created_at
             })),
@@ -173,16 +180,17 @@ class AdministrationService {
     }
 
     static async deleteAdministration(id) {
-        // Check if administration has related records
-        const paymentsCount = await AdministrationPayment.countDocuments({ administration_id: id });
-        const capitalInjectionsCount = await CapitalInjection.countDocuments({ administration_id: id });
-        const withdrawalsCount = await Withdrawal.countDocuments({ administration_id: id });
-
-        if (paymentsCount > 0 || capitalInjectionsCount > 0 || withdrawalsCount > 0) {
-            throw new Error('لا يمكن حذف الإدارة لوجود سجلات مرتبطة بها');
+        const admin = await Administration.findById(id);
+        
+        if (!admin) {
+            return null;
         }
 
-        const admin = await Administration.findByIdAndDelete(id);
+        // Soft delete
+        admin.is_deleted = true;
+        admin.deleted_at = new Date();
+        await admin.save();
+
         return admin;
     }
 
@@ -190,26 +198,65 @@ class AdministrationService {
     static async addAdministrationPayment(administrationId, paymentData) {
         const payment = new AdministrationPayment({
             administration_id: administrationId,
-            ...paymentData
+            amount: toNumber(paymentData.amount),
+            method: paymentData.method,
+            details: paymentData.details,
+            note: paymentData.note,
+            paid_at: paymentData.paid_at,
+            payment_image_url: paymentData.payment_image_url,
+            payment_image_public_id: paymentData.payment_image_public_id,
+            payment_image_thumbnail: paymentData.payment_image_thumbnail
         });
         await payment.save();
         return payment;
     }
 
+    static async getPaymentById(administrationId, paymentId) {
+        return await AdministrationPayment.findOne({
+            _id: paymentId,
+            administration_id: administrationId
+        });
+    }
+
     static async updateAdministrationPayment(administrationId, paymentId, paymentData) {
+        const updateData = {
+            amount: toNumber(paymentData.amount),
+            method: paymentData.method,
+            details: paymentData.details,
+            note: paymentData.note,
+            paid_at: paymentData.paid_at
+        };
+
+        if (paymentData.payment_image_url) {
+            updateData.payment_image_url = paymentData.payment_image_url;
+            updateData.payment_image_public_id = paymentData.payment_image_public_id;
+            updateData.payment_image_thumbnail = paymentData.payment_image_thumbnail;
+        }
+
         const payment = await AdministrationPayment.findOneAndUpdate(
             { _id: paymentId, administration_id: administrationId },
-            paymentData,
+            updateData,
             { new: true }
         );
         return payment;
     }
 
     static async deleteAdministrationPayment(administrationId, paymentId) {
-        const payment = await AdministrationPayment.findOneAndDelete({
+        const payment = await AdministrationPayment.findOne({
             _id: paymentId,
-            administration_id: administrationId
+            administration_id: administrationId,
+            is_deleted: { $ne: true }
         });
+
+        if (!payment) {
+            return null;
+        }
+
+        // Soft delete
+        payment.is_deleted = true;
+        payment.deleted_at = new Date();
+        await payment.save();
+
         return payment;
     }
 

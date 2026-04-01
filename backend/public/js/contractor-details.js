@@ -1,14 +1,3 @@
-const API_BASE = (function () {
-    if (window.__API_BASE__) return window.__API_BASE__;
-    try {
-        const origin = window.location.origin;
-        if (!origin || origin === 'null') return 'http://localhost:5000/api';
-        return origin.replace(/\/$/, '') + '/api';
-    } catch (e) {
-        return 'http://localhost:5000/api';
-    }
-})();
-
 // State
 let contractorData = null;
 let allDeliveries = [];
@@ -78,66 +67,40 @@ function getContractorIdFromURL() {
     return new URLSearchParams(window.location.search).get('id');
 }
 
-function formatCurrency(amount) {
-    return Number(amount || 0).toLocaleString('ar-EG', {
-        style: 'currency',
-        currency: 'EGP',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    });
-}
-
-function formatDate(dateStr) {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('ar-EG', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-    });
-}
-
-function formatQuantity(amount) {
-    return Number(amount || 0).toLocaleString('ar-EG', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    });
-}
-
 // Render Functions
 function renderSummary(totals) {
     const container = document.getElementById('summaryGrid');
     const balance = totals.balance || 0;
     const openingBalance = totals.openingBalance || 0;
 
-    // Determine opening balance status
+    // Determine opening balance status - POSITIVE = WE OWE THEM (مستحق للمقاول)
     const openingBalanceClass = openingBalance > 0 ? 'text-danger' : openingBalance < 0 ? 'text-success' : '';
-    const openingBalanceLabel = openingBalance > 0 ? 'مستحق للمقاول' : openingBalance < 0 ? 'مستحق لنا' : '';
+    const openingBalanceLabel = openingBalance > 0 ? '(مستحق للمقاول)' : openingBalance < 0 ? '(مستحق لنا)' : '';
 
     // Determine current balance status - POSITIVE = WE OWE THEM
     const balanceClass = balance > 0 ? 'text-danger' : balance < 0 ? 'text-success' : '';
-    const balanceLabel = balance > 0 ? 'مستحق للمقاول' : balance < 0 ? 'مستحق لنا' : 'متوازن';
+    const balanceLabel = balance > 0 ? '(مستحق للمقاول)' : balance < 0 ? '(مستحق لنا)' : '';
 
     container.innerHTML = `
-        <div class="summary-item">
-            <div class="summary-value ${openingBalanceClass}">${formatCurrency(Math.abs(openingBalance))}</div>
-            <div class="summary-label">الرصيد الافتتاحي <small style="font-size: 0.75rem;">${openingBalanceLabel}</small></div>
+        <div class="summary-item-modern">
+            <div class="summary-value-modern ${openingBalanceClass}">${formatCurrency(Math.abs(openingBalance))} <small style="font-size: 0.75rem;">${openingBalanceLabel}</small></div>
+            <div class="summary-label-modern">الرصيد الافتتاحي</div>
         </div>
-        <div class="summary-item">
-            <div class="summary-value text-danger">${formatCurrency(totals.totalTrips || 0)}</div>
-            <div class="summary-label">إجمالي مستحقات المشاوير</div>
+        <div class="summary-item-modern">
+            <div class="summary-value-modern text-danger">${formatCurrency(totals.totalTrips || 0)}</div>
+            <div class="summary-label-modern">إجمالي مستحقات المشاوير</div>
         </div>
-        <div class="summary-item">
-            <div class="summary-value text-success">${formatCurrency(totals.totalPayments || 0)}</div>
-            <div class="summary-label">إجمالي المدفوعات</div>
+        <div class="summary-item-modern">
+            <div class="summary-value-modern text-success">${formatCurrency(totals.totalPayments || 0)}</div>
+            <div class="summary-label-modern">إجمالي المدفوعات</div>
         </div>
-        <div class="summary-item">
-            <div class="summary-value ${totals.totalAdjustments >= 0 ? 'text-danger' : 'text-success'}">${formatCurrency(Math.abs(totals.totalAdjustments || 0))}</div>
-            <div class="summary-label">إجمالي التعديلات</div>
+        <div class="summary-item-modern">
+            <div class="summary-value-modern ${totals.totalAdjustments >= 0 ? 'text-danger' : 'text-success'}">${formatCurrency(Math.abs(totals.totalAdjustments || 0))} <small style="font-size: 0.75rem;">${totals.totalAdjustments >= 0 ? '(مستحق للمقاول)' : '(مستحق لنا)'}</small></div>
+            <div class="summary-label-modern">إجمالي التعديلات</div>
         </div>
-        <div class="summary-item">
-            <div class="summary-value ${balanceClass}">${formatCurrency(Math.abs(balance))}</div>
-            <div class="summary-label">الصافي - <small style="font-size: 0.75rem;">${balanceLabel}</small></div>
+        <div class="summary-item-modern">
+            <div class="summary-value-modern ${balanceClass}">${formatCurrency(Math.abs(balance))} <small style="font-size: 0.75rem;">${balanceLabel}</small></div>
+            <div class="summary-label-modern">الرصيد الصافي</div>
         </div>
     `;
 }
@@ -147,16 +110,17 @@ function renderDeliveries(deliveries) {
 
     if (!deliveries || deliveries.length === 0) {
         container.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-icon"><i class="fas fa-truck"></i></div>
-                <div>لا توجد مشاوير مسجلة</div>
+            <div class="empty-state-modern">
+                <i class="fas fa-truck-loading"></i>
+                <h3>لا توجد مشاوير مسجلة</h3>
+                <p>لم يتم تسجيل أي مشاوير لهذا المقاول بعد</p>
             </div>
         `;
         return;
     }
 
     const table = document.createElement('table');
-    table.className = 'table';
+    table.className = 'table-modern';
 
     // Header
     const thead = document.createElement('thead');
@@ -185,7 +149,7 @@ function renderDeliveries(deliveries) {
             delivery.crusher_name || '-',
             delivery.material || '-',
             delivery.voucher || '-',
-            formatQuantity(delivery.quantity) + ' م³', // Only quantity for contractors
+            formatQuantity(delivery.quantity) + ' م³',
             formatCurrency(delivery.contractor_total_charge || delivery.contractor_charge || 0)
         ];
 
@@ -198,8 +162,14 @@ function renderDeliveries(deliveries) {
         // Actions cell
         const actionsCell = document.createElement('td');
         actionsCell.innerHTML = `
-            <button class="btn btn-sm btn-secondary crud-btn" data-action="edit" data-type="delivery" data-id="${delivery.id}" title="تعديل"><i class="fas fa-edit"></i></button>
-            <button class="btn btn-sm btn-danger crud-btn" data-action="delete" data-type="delivery" data-id="${delivery.id}" title="حذف"><i class="fas fa-trash"></i></button>
+            <div class="action-btn-group">
+                <button class="action-btn-modern edit crud-btn" data-action="edit" data-type="delivery" data-id="${delivery.id}" title="تعديل">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="action-btn-modern danger crud-btn" data-action="delete" data-type="delivery" data-id="${delivery.id}" title="حذف">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
         `;
         row.appendChild(actionsCell);
 
@@ -216,16 +186,17 @@ function renderPayments(payments) {
 
     if (!payments || payments.length === 0) {
         container.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-icon"><i class="fas fa-money-bill-wave"></i></div>
-                <div>لا توجد مدفوعات مسجلة</div>
+            <div class="empty-state-modern">
+                <i class="fas fa-money-bill-wave"></i>
+                <h3>لا توجد مدفوعات مسجلة</h3>
+                <p>لم يتم تسجيل أي مدفوعات لهذا المقاول بعد</p>
             </div>
         `;
         return;
     }
 
     const table = document.createElement('table');
-    table.className = 'table';
+    table.className = 'table-modern';
 
     // Header
     const thead = document.createElement('thead');
@@ -261,17 +232,12 @@ function renderPayments(payments) {
 
         // Image cell
         const imageCell = document.createElement('td');
-        if (payment.payment_image) {
-            const imageBtn = document.createElement('button');
-            imageBtn.className = 'btn btn-sm btn-secondary';
-            imageBtn.title = 'عرض الصورة';
-            imageBtn.innerHTML = '<i class="fas fa-image"></i> عرض';
-            imageBtn.setAttribute('data-image', payment.payment_image);
-            imageBtn.onclick = function () {
-                const imageData = this.getAttribute('data-image');
-                showImageModal(imageData);
-            };
-            imageCell.appendChild(imageBtn);
+        if (payment.payment_image_url) {
+            imageCell.innerHTML = `
+                <button class="action-btn-modern view" data-image="${payment.payment_image_url}" onclick="showImageModal(this.getAttribute('data-image'))" title="عرض الصورة">
+                    <i class="fas fa-image"></i>
+                </button>
+            `;
         } else {
             imageCell.textContent = '-';
         }
@@ -280,8 +246,14 @@ function renderPayments(payments) {
         // Actions cell
         const actionsCell = document.createElement('td');
         actionsCell.innerHTML = `
-            <button class="btn btn-sm btn-secondary crud-btn" data-action="edit" data-type="payment" data-id="${payment.id}" title="تعديل"><i class="fas fa-edit"></i></button>
-            <button class="btn btn-sm btn-danger crud-btn" data-action="delete" data-type="payment" data-id="${payment.id}" title="حذف"><i class="fas fa-trash"></i></button>
+            <div class="action-btn-group">
+                <button class="action-btn-modern edit crud-btn" data-action="edit" data-type="payment" data-id="${payment.id}" title="تعديل">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="action-btn-modern danger crud-btn" data-action="delete" data-type="payment" data-id="${payment.id}" title="حذف">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
         `;
         row.appendChild(actionsCell);
 
@@ -298,16 +270,17 @@ function renderAdjustments(adjustments) {
 
     if (!adjustments || adjustments.length === 0) {
         container.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-icon"><i class="fas fa-balance-scale"></i></div>
-                <div>لا توجد تسويات مسجلة</div>
+            <div class="empty-state-modern">
+                <i class="fas fa-balance-scale"></i>
+                <h3>لا توجد تسويات مسجلة</h3>
+                <p>لم يتم تسجيل أي تسويات لهذا المقاول بعد</p>
             </div>
         `;
         return;
     }
 
     const table = document.createElement('table');
-    table.className = 'table';
+    table.className = 'table-modern';
 
     // Header
     const thead = document.createElement('thead');
@@ -328,8 +301,11 @@ function renderAdjustments(adjustments) {
         const row = document.createElement('tr');
 
         const amountCell = document.createElement('td');
-        amountCell.textContent = formatCurrency(adjustment.amount);
-        amountCell.className = adjustment.amount >= 0 ? 'text-success' : 'text-danger';
+        const amount = adjustment.amount || 0;
+        // Positive = we owe them more (مستحق للمقاول), Negative = they owe us (مستحق لنا)
+        amountCell.className = amount >= 0 ? 'text-danger' : 'text-success';
+        const label = amount >= 0 ? '(مستحق للمقاول)' : '(مستحق لنا)';
+        amountCell.innerHTML = `${formatCurrency(Math.abs(amount))} <small style="font-size: 0.75rem;">${label}</small>`;
 
         const cells = [
             formatDate(adjustment.created_at),
@@ -352,8 +328,14 @@ function renderAdjustments(adjustments) {
         // Actions cell
         const actionsCell = document.createElement('td');
         actionsCell.innerHTML = `
-            <button class="btn btn-sm btn-secondary crud-btn" data-action="edit" data-type="adjustment" data-id="${adjustment.id}" title="تعديل"><i class="fas fa-edit"></i></button>
-            <button class="btn btn-sm btn-danger crud-btn" data-action="delete" data-type="adjustment" data-id="${adjustment.id}" title="حذف"><i class="fas fa-trash"></i></button>
+            <div class="action-btn-group">
+                <button class="action-btn-modern edit crud-btn" data-action="edit" data-type="adjustment" data-id="${adjustment.id}" title="تعديل">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="action-btn-modern danger crud-btn" data-action="delete" data-type="adjustment" data-id="${adjustment.id}" title="حذف">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
         `;
         row.appendChild(actionsCell);
 
@@ -1000,7 +982,7 @@ async function openEditContractorModal() {
 
     if (!contractorData || !contractorData.contractor) {
         console.error('No contractor data available');
-        alert('لا توجد بيانات مقاول للتعديل');
+        showAlert('لا توجد بيانات مقاول للتعديل');
         return;
     }
 
@@ -1061,11 +1043,11 @@ function addEditContractorOpeningBalanceRow(existingData = null) {
     const projectCol = document.createElement('div');
     const projectLabel = document.createElement('label');
     projectLabel.style.cssText = 'display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: 500;';
-    projectLabel.textContent = 'المشروع';
+    projectLabel.textContent = 'في حساب (المشروع/العميل)';
     const projectSelect = document.createElement('select');
     projectSelect.className = 'form-input contractor-opening-balance-project';
     projectSelect.required = true;
-    projectSelect.innerHTML = '<option value="">اختر المشروع</option>';
+    projectSelect.innerHTML = '<option value="">اختر المشروع/العميل</option>';
     
     editContractorProjectsList.forEach(project => {
         const option = document.createElement('option');
@@ -1095,6 +1077,11 @@ function addEditContractorOpeningBalanceRow(existingData = null) {
         amountInput.value = existingData.amount || 0;
     }
     
+    // Add help text
+    const amountHelp = document.createElement('small');
+    amountHelp.style.cssText = 'display: block; margin-top: 5px; font-size: 0.75rem; color: var(--gray-600);';
+    amountHelp.textContent = 'موجب = نحن مدينون لهم | سالب = هم مدينون لنا';
+    
     // Add event listener to show/hide project field based on amount
     amountInput.addEventListener('input', () => {
         const amount = parseFloat(amountInput.value) || 0;
@@ -1102,23 +1089,42 @@ function addEditContractorOpeningBalanceRow(existingData = null) {
             // Positive: we owe them, must select project
             projectCol.style.display = 'block';
             projectSelect.required = true;
-        } else {
-            // Negative or zero: they owe us, no project needed
+            amountHelp.style.color = 'var(--danger)';
+            amountHelp.textContent = '⚠️ يجب تحديد المشروع/العميل للرصيد الموجب';
+        } else if (amount < 0) {
+            // Negative: they owe us, no project needed
             projectCol.style.display = 'none';
             projectSelect.required = false;
             projectSelect.value = '';  // Clear selection
+            amountHelp.style.color = 'var(--success)';
+            amountHelp.textContent = '✓ رصيد سالب (هم مدينون لنا) - لا يحتاج مشروع';
+        } else {
+            projectCol.style.display = 'none';
+            projectSelect.required = false;
+            projectSelect.value = '';
+            amountHelp.style.color = 'var(--gray-600)';
+            amountHelp.textContent = 'موجب = نحن مدينون لهم | سالب = هم مدينون لنا';
         }
     });
     
     // Initial state based on existing amount
     const initialAmount = parseFloat(amountInput.value) || 0;
-    if (initialAmount <= 0) {
+    if (initialAmount > 0) {
+        amountHelp.style.color = 'var(--danger)';
+        amountHelp.textContent = '⚠️ يجب تحديد المشروع/العميل للرصيد الموجب';
+    } else if (initialAmount < 0) {
+        projectCol.style.display = 'none';
+        projectSelect.required = false;
+        amountHelp.style.color = 'var(--success)';
+        amountHelp.textContent = '✓ رصيد سالب (هم مدينون لنا) - لا يحتاج مشروع';
+    } else {
         projectCol.style.display = 'none';
         projectSelect.required = false;
     }
     
     amountCol.appendChild(amountLabel);
     amountCol.appendChild(amountInput);
+    amountCol.appendChild(amountHelp);
     
     // Description column
     const descCol = document.createElement('div');
@@ -1142,7 +1148,7 @@ function addEditContractorOpeningBalanceRow(existingData = null) {
     const deleteBtn = document.createElement('button');
     deleteBtn.type = 'button';
     deleteBtn.className = 'btn btn-sm btn-danger';
-    deleteBtn.textContent = '<i class="fas fa-trash"></i>';
+    deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
     deleteBtn.onclick = () => row.remove();
     deleteCol.appendChild(deleteBtn);
     
@@ -1234,9 +1240,25 @@ function setupEditContractorHandlers() {
     const editBtn = document.getElementById('editContractorBtn');
     if (editBtn) {
         console.log('Edit contractor button found, adding event listener');
-        editBtn.addEventListener('click', function () {
+        editBtn.addEventListener('click', async function (e) {
             console.log('Edit contractor button clicked!');
-            openEditContractorModal();
+            const btn = e.currentTarget;
+            const originalHTML = btn.innerHTML;
+            
+            try {
+                // Show loading state
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحميل...';
+                
+                await openEditContractorModal();
+            } catch (error) {
+                console.error('Error opening edit modal:', error);
+                showAlert('حدث خطأ في تحميل البيانات');
+            } finally {
+                // Restore button state
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            }
         });
         console.log('Edit contractor event listener added successfully');
     } else {
@@ -1282,7 +1304,14 @@ function setupEditContractorHandlers() {
     // Add opening balance button for edit form
     const addEditBalanceBtn = document.getElementById('addEditContractorOpeningBalanceBtn');
     if (addEditBalanceBtn) {
-        addEditBalanceBtn.addEventListener('click', () => addEditContractorOpeningBalanceRow());
+        addEditBalanceBtn.addEventListener('click', async () => {
+            // Make sure projects are loaded before adding a new row
+            if (editContractorProjectsList.length === 0) {
+                console.log('Projects not loaded, loading now...');
+                await loadProjectsForEdit();
+            }
+            addEditContractorOpeningBalanceRow();
+        });
     }
 }
 
@@ -1310,7 +1339,7 @@ window.showImageModal = function (imageData) {
 
     // Check if imageData is valid
     if (!imageData || imageData === 'null' || imageData === 'undefined' || imageData.trim() === '') {
-        alert('لا توجد صورة لعرضها');
+        showAlert('لا توجد صورة لعرضها');
         return;
     }
 
@@ -1321,7 +1350,7 @@ window.showImageModal = function (imageData) {
     // Add error handler for the image
     modalImage.onerror = function () {
         console.error('Failed to load image:', imageData.substring(0, 100));
-        alert('فشل في تحميل الصورة');
+        showAlert('فشل في تحميل الصورة');
         closeModal('imageModal');
     };
 
@@ -1339,7 +1368,7 @@ window.editPayment = function (paymentId) {
     console.log('editPayment called with ID:', paymentId);
     const payment = allPayments.find(p => p.id === paymentId);
     if (!payment) {
-        alert('لم يتم العثور على الدفعة');
+        showAlert('لم يتم العثور على الدفعة');
         return;
     }
 
@@ -1370,9 +1399,17 @@ window.editPayment = function (paymentId) {
     showModal('paymentModal');
 };
 
-window.deletePayment = function (paymentId) {
+window.deletePayment = async function (paymentId) {
     console.log('deletePayment called with ID:', paymentId);
-    if (!confirm('هل أنت متأكد من حذف هذه الدفعة؟')) {
+    
+    const confirmed = await showConfirmDialog(
+        'تأكيد الحذف',
+        'هل أنت متأكد من حذف هذه الدفعة؟',
+        'نعم، احذف',
+        'إلغاء'
+    );
+    
+    if (!confirmed) {
         return;
     }
 
@@ -1388,12 +1425,12 @@ window.deletePayment = function (paymentId) {
             return response.json();
         })
         .then(() => {
-            alert('تم حذف الدفعة بنجاح');
+            showAlert('تم حذف الدفعة بنجاح');
             loadContractorDetails();
         })
         .catch(error => {
             console.error('Error deleting payment:', error);
-            alert('خطأ في حذف الدفعة: ' + error.message);
+            showAlert('خطأ في حذف الدفعة: ' + error.message);
         });
 };
 
@@ -1402,7 +1439,7 @@ window.editAdjustment = function (adjustmentId) {
     console.log('editAdjustment called with ID:', adjustmentId);
     const adjustment = allAdjustments.find(a => a.id === adjustmentId);
     if (!adjustment) {
-        alert('لم يتم العثور على التسوية');
+        showAlert('لم يتم العثور على التسوية');
         return;
     }
 
@@ -1417,9 +1454,17 @@ window.editAdjustment = function (adjustmentId) {
     showModal('adjustmentModal');
 };
 
-window.deleteAdjustment = function (adjustmentId) {
+window.deleteAdjustment = async function (adjustmentId) {
     console.log('deleteAdjustment called with ID:', adjustmentId);
-    if (!confirm('هل أنت متأكد من حذف هذه التسوية؟')) {
+    
+    const confirmed = await showConfirmDialog(
+        'تأكيد الحذف',
+        'هل أنت متأكد من حذف هذه التسوية؟',
+        'نعم، احذف',
+        'إلغاء'
+    );
+    
+    if (!confirmed) {
         return;
     }
 
@@ -1435,12 +1480,12 @@ window.deleteAdjustment = function (adjustmentId) {
             return response.json();
         })
         .then(() => {
-            alert('تم حذف التسوية بنجاح');
+            showAlert('تم حذف التسوية بنجاح');
             loadContractorDetails();
         })
         .catch(error => {
             console.error('Error deleting adjustment:', error);
-            alert('خطأ في حذف التسوية: ' + error.message);
+            showAlert('خطأ في حذف التسوية: ' + error.message);
         });
 };
 // CRUD functions for deliveries
@@ -1451,7 +1496,7 @@ window.editDelivery = async function (deliveryId) {
         // Find delivery in current data
         const delivery = allDeliveries.find(d => d.id === deliveryId);
         if (!delivery) {
-            alert('لم يتم العثور على التسليم');
+            showAlert('لم يتم العثور على التسليم');
             return;
         }
 
@@ -1471,12 +1516,19 @@ window.editDelivery = async function (deliveryId) {
         showModal('deliveryEditModal');
     } catch (error) {
         console.error('Error editing delivery:', error);
-        alert('حدث خطأ في تحميل بيانات التسليم');
+        showAlert('حدث خطأ في تحميل بيانات التسليم');
     }
 };
 
-window.deleteDelivery = function (deliveryId) {
-    if (!confirm('هل أنت متأكد من حذف هذه التسليمة؟ تحذير: هذا سيؤثر على الحسابات المحاسبية.')) {
+window.deleteDelivery = async function (deliveryId) {
+    const confirmed = await showConfirmDialog(
+        'تأكيد الحذف',
+        'هل أنت متأكد من حذف هذه التسليمة؟ تحذير: هذا سيؤثر على الحسابات المحاسبية.',
+        'نعم، احذف',
+        'إلغاء'
+    );
+    
+    if (!confirmed) {
         return;
     }
 
@@ -1490,12 +1542,12 @@ window.deleteDelivery = function (deliveryId) {
             return response.json();
         })
         .then(() => {
-            alert('تم حذف التسليمة بنجاح');
+            showAlert('تم حذف التسليمة بنجاح');
             loadContractorDetails();
         })
         .catch(error => {
             console.error('Error deleting delivery:', error);
-            alert('خطأ في حذف التسليمة: ' + error.message);
+            showAlert('خطأ في حذف التسليمة: ' + error.message);
         });
 };
 // Report Functions
@@ -1505,7 +1557,7 @@ window.generateDeliveriesReport = async function () {
     const toDate = document.getElementById('deliveriesToDate').value;
 
     if (!fromDate || !toDate) {
-        alert('يرجى تحديد فترة زمنية للتقرير');
+        showAlert('يرجى تحديد فترة زمنية للتقرير');
         return;
     }
 
@@ -1514,7 +1566,7 @@ window.generateDeliveriesReport = async function () {
         window.open(url, '_blank');
     } catch (error) {
         console.error('Error generating deliveries report:', error);
-        alert('حدث خطأ في إنشاء التقرير');
+        showAlert('حدث خطأ في إنشاء التقرير');
     }
 };
 
@@ -1529,7 +1581,7 @@ window.generateAccountStatement = async function () {
         toDate = document.getElementById('statementToDate').value;
 
         if (!fromDate || !toDate) {
-            alert('يرجى تحديد فترة زمنية لكشف الحساب');
+            showAlert('يرجى تحديد فترة زمنية لكشف الحساب');
             return;
         }
     }
@@ -1542,7 +1594,7 @@ window.generateAccountStatement = async function () {
         window.open(url, '_blank');
     } catch (error) {
         console.error('Error generating account statement:', error);
-        alert('حدث خطأ في إنشاء كشف الحساب');
+        showAlert('حدث خطأ في إنشاء كشف الحساب');
     }
 };
 

@@ -272,7 +272,7 @@ function displayPayments(payments) {
             <td>
                 <button class="btn btn-sm btn-secondary" onclick="editPayment('${payment.id}')">تعديل</button>
                 <button class="btn btn-sm btn-danger" onclick="deletePayment('${payment.id}')">حذف</button>
-                ${payment.payment_image ? `<button class="btn btn-sm btn-info" onclick="viewPaymentImage('${payment.payment_image}')">عرض الصورة</button>` : ''}
+                ${payment.payment_image_url ? `<button class="btn btn-sm btn-info" onclick="viewPaymentImage('${payment.payment_image_url}')">عرض الصورة</button>` : ''}
             </td>
         </tr>
     `).join('');

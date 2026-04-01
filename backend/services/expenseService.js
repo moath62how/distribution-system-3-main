@@ -175,7 +175,18 @@ class ExpenseService {
     }
 
     static async deleteExpense(id) {
-        return await Expense.findByIdAndDelete(id);
+        const expense = await Expense.findById(id);
+        
+        if (!expense) {
+            return null;
+        }
+
+        // Soft delete
+        expense.is_deleted = true;
+        expense.deleted_at = new Date();
+        await expense.save();
+
+        return expense;
     }
 
     // Get expenses with filtering and pagination

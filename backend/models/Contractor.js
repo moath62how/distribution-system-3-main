@@ -4,6 +4,8 @@ const contractorSchema = new mongoose.Schema({
     name: {
         type: String,
         required: true,
+        unique: true,
+        trim: true,
         maxlength: 255
     },
     opening_balance: {
@@ -11,6 +13,14 @@ const contractorSchema = new mongoose.Schema({
         default: 0,
         get: v => Math.round(v * 100) / 100,
         set: v => Math.round(v * 100) / 100
+    },
+    deleted_at: {
+        type: Date,
+        default: null
+    },
+    is_deleted: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },

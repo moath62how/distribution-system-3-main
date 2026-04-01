@@ -1,0 +1,106 @@
+<!-- Material Design Sidebar -->
+<aside class="sidebar-md" id="sidebar">
+    <!-- Header/Logo Area -->
+    <div class="sidebar-header-md">
+        <div class="sidebar-logo-md">
+            <span class="material-symbols-outlined">corporate_fare</span>
+        </div>
+        <div class="sidebar-brand-md">
+            <h2 class="sidebar-brand-title">نظام التوزيع</h2>
+            <p class="sidebar-brand-subtitle">إدارة المؤسسة الذكية</p>
+        </div>
+    </div>
+    
+    <!-- Navigation Links -->
+    <nav class="sidebar-nav-md custom-scrollbar">
+        <a href="index.html" class="sidebar-link-md" data-page="index">
+            <span class="material-symbols-outlined">dashboard</span>
+            <span>لوحة التحكم</span>
+        </a>
+        <a href="clients.html" class="sidebar-link-md" data-page="clients">
+            <span class="material-symbols-outlined">group</span>
+            <span>العملاء</span>
+        </a>
+        <a href="crushers.html" class="sidebar-link-md" data-page="crushers">
+            <span class="material-symbols-outlined">factory</span>
+            <span>الكسارات</span>
+        </a>
+        <a href="contractors.html" class="sidebar-link-md" data-page="contractors">
+            <span class="material-symbols-outlined">local_shipping</span>
+            <span>مقاولون العجل</span>
+        </a>
+        <a href="employees.html" class="sidebar-link-md" data-page="employees">
+            <span class="material-symbols-outlined">badge</span>
+            <span>الموظفون</span>
+        </a>
+        <a href="administration.html" class="sidebar-link-md" data-page="administration">
+            <span class="material-symbols-outlined">admin_panel_settings</span>
+            <span>الإدارة</span>
+        </a>
+        <a href="suppliers.html" class="sidebar-link-md" data-page="suppliers">
+            <span class="material-symbols-outlined">inventory</span>
+            <span>الموردون</span>
+        </a>
+        <a href="projects.html" class="sidebar-link-md" data-page="projects">
+            <span class="material-symbols-outlined">account_tree</span>
+            <span>المشاريع</span>
+        </a>
+        <a href="expenses.html" class="sidebar-link-md" data-page="expenses">
+            <span class="material-symbols-outlined">payments</span>
+            <span>المصروفات</span>
+        </a>
+        <a href="new-entry.html" class="sidebar-link-md" data-page="new-entry">
+            <span class="material-symbols-outlined">add_circle</span>
+            <span>تسليم جديد</span>
+        </a>
+        
+        <!-- System Management Section -->
+        <div style="margin-top: 1.5rem; padding: 0.5rem 1rem; color: var(--md-on-surface-variant); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;" data-role="manager,system_maintenance">
+            إدارة النظام
+        </div>
+        <a href="audit-logs.html" class="sidebar-link-md" data-page="audit-logs" data-role="manager,system_maintenance">
+            <span class="material-symbols-outlined">history</span>
+            <span>سجل العمليات</span>
+        </a>
+        <a href="recycle-bin.html" class="sidebar-link-md" data-page="recycle-bin" data-role="manager,accountant">
+            <span class="material-symbols-outlined">delete</span>
+            <span>سلة المحذوفات</span>
+        </a>
+        <a href="user-management.html" class="sidebar-link-md" data-page="user-management" data-role="system_maintenance">
+            <span class="material-symbols-outlined">manage_accounts</span>
+            <span>إدارة المستخدمين</span>
+        </a>
+    </nav>
+    
+    <!-- User Section -->
+    <div class="sidebar-footer-md">
+        <div class="sidebar-user-md" id="userSection">
+            <img src="https://ui-avatars.com/api/?name=User&background=545f73&color=fff&size=128" alt="User Avatar" class="sidebar-user-avatar" id="userAvatar">
+            <div class="sidebar-user-info">
+                <div class="sidebar-user-name" id="userName">جاري التحميل...</div>
+                <div class="sidebar-user-role" id="userRole">...</div>
+            </div>
+            <button class="btn-md-icon" id="logoutBtn" title="تسجيل الخروج" style="color: var(--md-error);">
+                <span class="material-symbols-outlined">logout</span>
+            </button>
+        </div>
+    </div>
+</aside>
+
+<!-- Mobile Overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; backdrop-filter: blur(4px);"></div>
+
+<!-- Hamburger Button for Mobile -->
+<button class="hamburger" id="sidebarHamburger" aria-label="القائمة الجانبية" style="display: none; position: fixed; top: 1rem; right: 1rem; z-index: 60; background: var(--md-primary); color: var(--md-on-primary); border: none; width: 3rem; height: 3rem; border-radius: var(--md-radius-full); box-shadow: var(--md-shadow-lg); cursor: pointer;">
+    <span class="material-symbols-outlined">menu</span>
+</button>
+
+<style>
+@media (max-width: 768px) {
+    .hamburger {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+    }
+}
+</style>

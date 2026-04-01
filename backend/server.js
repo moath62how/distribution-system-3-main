@@ -186,14 +186,29 @@ async function bootstrap() {
       const totalSales = deliveries.reduce((sum, d) => sum + Number(d.total_value || 0), 0);
 
       // 2. Total Crusher Costs (what we owe crushers - using historical prices)
+      // Only count deliveries from crushers (have crusher_id but no supplier_id)
       const totalCrusherCosts = deliveries.reduce((sum, d) => {
-        const netQuantity = Number(d.car_volume || 0) - Number(d.discount_volume || 0);
-        const materialPrice = Number(d.material_price_at_time || 0); // Use historical price stored in delivery
-        return sum + (netQuantity * materialPrice);
+        if (d.crusher_id && !d.supplier_id) {
+          const netQuantity = Number(d.car_volume || 0) - Number(d.discount_volume || 0);
+          const materialPrice = Number(d.material_price_at_time || 0);
+          return sum + (netQuantity * materialPrice);
+        }
+        return sum;
       }, 0);
 
       // 3. Total Contractor Costs (what we owe contractors)
       const totalContractorCosts = deliveries.reduce((sum, d) => sum + Number(d.contractor_total_charge || 0), 0);
+
+      // 3.5. Total Supplier Costs (what we owe suppliers - from supplier-provided materials)
+      // Only count deliveries from suppliers (have supplier_id)
+      const totalSupplierCosts = deliveries.reduce((sum, d) => {
+        if (d.supplier_id) {
+          const netQuantity = Number(d.car_volume || 0) - Number(d.discount_volume || 0);
+          const materialPrice = Number(d.material_price_at_time || 0);
+          return sum + (netQuantity * materialPrice);
+        }
+        return sum;
+      }, 0);
 
       // 4. Operating expenses (excluding soft-deleted)
       const expenseAgg = await Expense.aggregate([
@@ -235,8 +250,8 @@ async function bootstrap() {
       ]);
       const totalCapitalInjected = capitalInjectionsAgg.length > 0 ? capitalInjectionsAgg[0].total : 0;
 
-      // 8. Total Expenses (all costs including employees and administration)
-      const totalExpenses = totalCrusherCosts + totalContractorCosts + Number(operatingExpenses || 0) + Math.max(0, totalEmployeeCosts) + totalAdministrationCosts;
+      // 8. Total Expenses (all costs including suppliers, employees and administration)
+      const totalExpenses = totalCrusherCosts + totalSupplierCosts + totalContractorCosts + Number(operatingExpenses || 0) + Math.max(0, totalEmployeeCosts) + totalAdministrationCosts;
 
       // 9. Net Profit (sales - all expenses)
       const netProfit = totalSales - totalExpenses;
@@ -270,43 +285,120 @@ async function bootstrap() {
       const contractors = await Contractor.find({ is_deleted: { $ne: true } });
       const employees = await Employee.find({ is_deleted: { $ne: true } });
 
+      // Calculate balances for each entity using services
+      const ClientService = require('./services/clientService');
+      const ContractorService = require('./services/contractorService');
+      const CrusherService = require('./services/crusherService');
+      const SupplierService = require('./services/supplierService');
+      // PayrollService already required above (line 207)
+
+      // Calculate client balances
+      const clientBalances = await Promise.all(
+        clients.map(async (client) => {
+          const totals = await ClientService.computeClientTotals(client._id);
+          return totals.balance || 0;
+        })
+      );
+
+      // Calculate crusher balances (net)
+      const crusherBalances = await Promise.all(
+        crushers.map(async (crusher) => {
+          const totals = await CrusherService.computeCrusherTotals(crusher._id);
+          return totals.net || 0;
+        })
+      );
+
+      // Calculate contractor balances
+      const contractorBalances = await Promise.all(
+        contractors.map(async (contractor) => {
+          const totals = await ContractorService.computeContractorTotals(contractor._id);
+          return totals.balance || 0;
+        })
+      );
+
+      // Calculate supplier balances
+      const supplierBalances = await Promise.all(
+        suppliers.map(async (supplier) => {
+          const totals = await SupplierService.computeSupplierTotals(supplier._id);
+          return totals.balance || 0;
+        })
+      );
+
+      // Calculate employee balances
+      const employeeBalances = await Promise.all(
+        employees.map(async (employee) => {
+          const result = await PayrollService.calculateEmployeeBalance(employee);
+          return result.balance || 0;
+        })
+      );
+
       // Client balances (positive = they owe us, negative = we owe them)
-      const totalClientBalancesPositive = clients
-        .filter(c => (c.balance || 0) > 0)
-        .reduce((sum, c) => sum + (c.balance || 0), 0);
+      const totalClientBalancesPositive = clientBalances
+        .filter(b => b > 0)
+        .reduce((sum, b) => sum + b, 0);
 
-      // Supplier balances (positive = we owe them)
-      const totalSupplierBalances = suppliers
-        .reduce((sum, s) => sum + Math.abs(s.balance || 0), 0);
+      const clientsNegativeBalance = clientBalances
+        .filter(b => b < 0)
+        .reduce((sum, b) => sum + Math.abs(b), 0);
 
-      // Crusher balances (positive net = we owe them)
-      const totalCrusherBalances = crushers
-        .filter(c => (c.net || 0) > 0)
-        .reduce((sum, c) => sum + (c.net || 0), 0);
+      // Crusher balances (positive net = we owe them, negative = they owe us)
+      const totalCrusherBalances = crusherBalances
+        .filter(b => b > 0)
+        .reduce((sum, b) => sum + b, 0);
 
-      // Contractor balances (positive = we owe them)
-      const totalContractorBalances = contractors
-        .filter(c => (c.balance || 0) > 0)
-        .reduce((sum, c) => sum + (c.balance || 0), 0);
+      const crushersNegativeNet = crusherBalances
+        .filter(b => b < 0)
+        .reduce((sum, b) => sum + Math.abs(b), 0);
 
-      // Employee balances (negative = we owe them)
-      const totalEmployeeBalancesNegative = employees
-        .filter(e => (e.balance || 0) < 0)
-        .reduce((sum, e) => sum + (e.balance || 0), 0);
+      // Contractor balances (positive = we owe them, negative = they owe us)
+      const totalContractorBalances = contractorBalances
+        .filter(b => b > 0)
+        .reduce((sum, b) => sum + b, 0);
 
-      // 12. Calculate supplier costs and payments
+      const contractorsNegativeBalance = contractorBalances
+        .filter(b => b < 0)
+        .reduce((sum, b) => sum + Math.abs(b), 0);
+
+      // Supplier balances (positive = we owe them, negative = they owe us)
+      const totalSupplierBalances = supplierBalances
+        .filter(b => b > 0)
+        .reduce((sum, b) => sum + b, 0);
+
+      const suppliersNegativeBalance = supplierBalances
+        .filter(b => b < 0)
+        .reduce((sum, b) => sum + Math.abs(b), 0);
+
+      // Employee balances (negative = we owe them, positive = they owe us)
+      const totalEmployeeBalancesNegative = employeeBalances
+        .filter(b => b < 0)
+        .reduce((sum, b) => sum + b, 0);
+
+      const employeesPositiveBalance = employeeBalances
+        .filter(b => b > 0)
+        .reduce((sum, b) => sum + b, 0);
+
+      // Total Receivables = All money owed TO us (الديون اللي لينا)
+      const totalReceivables = 
+        totalClientBalancesPositive +
+        crushersNegativeNet +
+        contractorsNegativeBalance +
+        suppliersNegativeBalance +
+        employeesPositiveBalance;
+
+      // Total Payables = All money we owe TO others (المستحقات اللي علينا)
+      const totalPayables = 
+        totalSupplierBalances +
+        totalCrusherBalances +
+        totalContractorBalances +
+        Math.abs(totalEmployeeBalancesNegative) +
+        clientsNegativeBalance;
+
+      // 12. Calculate supplier payments
       const supplierPaymentsAgg = await SupplierPayment.aggregate([
         { $match: { is_deleted: { $ne: true } } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ]);
       const totalSupplierPayments = supplierPaymentsAgg.length > 0 ? supplierPaymentsAgg[0].total : 0;
-
-      // Calculate supplier costs from supplier opening balances
-      const supplierOpeningBalancesAgg = await SupplierOpeningBalance.aggregate([
-        { $match: { is_deleted: { $ne: true } } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-      ]);
-      const totalSupplierCosts = supplierOpeningBalancesAgg.length > 0 ? supplierOpeningBalancesAgg[0].total : 0;
 
       // 13. Calculate adjustments and losses
       const adjustmentsAgg = await Adjustment.aggregate([
@@ -360,6 +452,15 @@ async function bootstrap() {
         totalContractorBalances: Number(totalContractorBalances || 0),
         totalEmployeeBalancesNegative: Number(totalEmployeeBalancesNegative || 0),
 
+        // 🆕 NEW: Total Receivables & Payables
+        totalReceivables: Number(totalReceivables || 0),
+        totalPayables: Number(totalPayables || 0),
+        clientsNegativeBalance: Number(clientsNegativeBalance || 0),
+        crushersNegativeNet: Number(crushersNegativeNet || 0),
+        contractorsNegativeBalance: Number(contractorsNegativeBalance || 0),
+        suppliersNegativeBalance: Number(suppliersNegativeBalance || 0),
+        employeesPositiveBalance: Number(employeesPositiveBalance || 0),
+
         // Supplier Data
         totalSupplierCosts: Number(totalSupplierCosts || 0),
         totalSupplierPayments: Number(totalSupplierPayments || 0),
@@ -373,9 +474,9 @@ async function bootstrap() {
     }
   });
 
-  // System management routes - MANAGER ONLY
-  app.use('/api/audit', requireRole(['manager']), auditRouter);
-  app.use('/api/recycle-bin', requireRole(['manager']), recycleBinRouter);
+  // System management routes - MANAGER + SYSTEM_MAINTENANCE only
+  app.use('/api/audit-logs', requireRole(['manager', 'system_maintenance']), auditRouter);
+  app.use('/api/recycle-bin', requireRole(['manager', 'accountant']), recycleBinRouter);
 
   // Manual sync endpoint for client-project synchronization
   app.post('/api/sync/clients-projects', requireRole(['manager']), async (req, res) => {

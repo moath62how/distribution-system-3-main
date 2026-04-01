@@ -221,7 +221,8 @@ async function createCrusher(crusherData) {
     });
 
     if (!response.ok) {
-        throw new Error('فشل في إضافة الكسارة');
+        const error = await response.json();
+        throw new Error(error.message || 'فشل في إضافة الكسارة');
     }
 
     return response.json();
@@ -249,8 +250,17 @@ function setupEventHandlers() {
     });
 
     // Add crusher form
-    document.getElementById('addCrusherForm').addEventListener('submit', async (e) => {
+    let isSubmittingCrusher = false;
+    const addCrusherForm = document.getElementById('addCrusherForm');
+    
+    addCrusherForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        // Prevent double submission
+        if (isSubmittingCrusher) {
+            console.log('Already submitting, please wait...');
+            return;
+        }
 
         const formData = new FormData(e.target);
         const openingBalances = getCrusherOpeningBalances();
@@ -265,25 +275,65 @@ function setupEventHandlers() {
             opening_balances: openingBalances
         };
 
+        isSubmittingCrusher = true;
+        const submitButton = e.target.querySelector('button[type="submit"]');
+        const originalButtonText = submitButton ? submitButton.textContent : 'حفظ';
+        
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.textContent = 'جاري الإضافة...';
+        }
+
         try {
             await createCrusher(crusherData);
-            showMessage('addCrusherMessage', 'تم إضافة الكسارة بنجاح', 'success');
+            
+            // Show success message
+            await Swal.fire({
+                title: 'تم بنجاح',
+                text: 'تم إضافة الكسارة بنجاح',
+                icon: 'success',
+                confirmButtonText: 'موافق',
+                timer: 2000
+            });
 
-            setTimeout(() => {
-                closeModal('addCrusherModal');
-                loadCrushers();
-                e.target.reset();
-                document.getElementById('crusherOpeningBalancesContainer').innerHTML = '';
-                crusherOpeningBalanceCounter = 0;
-            }, 1000);
+            closeModal('addCrusherModal');
+            loadCrushers();
+            e.target.reset();
+            document.getElementById('crusherOpeningBalancesContainer').innerHTML = '';
+            crusherOpeningBalanceCounter = 0;
+            
         } catch (error) {
-            showMessage('addCrusherMessage', error.message, 'error');
+            console.error('Error creating crusher:', error);
+            
+            // Show error message
+            await Swal.fire({
+                title: 'خطأ',
+                text: error.message || 'فشل في إضافة الكسارة',
+                icon: 'error',
+                confirmButtonText: 'موافق'
+            });
+        } finally {
+            // Always reset the flag and button state
+            isSubmittingCrusher = false;
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.textContent = originalButtonText;
+            }
         }
     });
 
     // Edit prices form
-    document.getElementById('editPricesForm').addEventListener('submit', async (e) => {
+    let isSubmittingPrices = false;
+    const editPricesForm = document.getElementById('editPricesForm');
+    
+    editPricesForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        // Prevent double submission
+        if (isSubmittingPrices) {
+            console.log('Already submitting, please wait...');
+            return;
+        }
 
         const crusherId = document.getElementById('editCrusherId').value;
         const formData = new FormData(e.target);
@@ -295,16 +345,47 @@ function setupEventHandlers() {
             aggregate6_powder_price: parseFloat(formData.get('aggregate6_powder_price')) || 0
         };
 
+        isSubmittingPrices = true;
+        const submitButton = e.target.querySelector('button[type="submit"]');
+        const originalButtonText = submitButton ? submitButton.textContent : 'حفظ';
+        
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.textContent = 'جاري التحديث...';
+        }
+
         try {
             await updateCrusherPrices(crusherId, pricesData);
-            showMessage('editPricesMessage', 'تم تحديث الأسعار بنجاح', 'success');
+            
+            // Show success message
+            await Swal.fire({
+                title: 'تم بنجاح',
+                text: 'تم تحديث الأسعار بنجاح',
+                icon: 'success',
+                confirmButtonText: 'موافق',
+                timer: 2000
+            });
 
-            setTimeout(() => {
-                closeModal('editPricesModal');
-                loadCrushers();
-            }, 1000);
+            closeModal('editPricesModal');
+            loadCrushers();
+            
         } catch (error) {
-            showMessage('editPricesMessage', error.message, 'error');
+            console.error('Error updating prices:', error);
+            
+            // Show error message
+            await Swal.fire({
+                title: 'خطأ',
+                text: error.message || 'فشل في تحديث الأسعار',
+                icon: 'error',
+                confirmButtonText: 'موافق'
+            });
+        } finally {
+            // Always reset the flag and button state
+            isSubmittingPrices = false;
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.textContent = originalButtonText;
+            }
         }
     });
 

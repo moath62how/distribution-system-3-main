@@ -50,6 +50,20 @@ class ExpensesController {
     async createExpense(req, res, next) {
         try {
             const expense = await expenseService.createExpense(req.body);
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'create',
+                'Expense',
+                expense.id || expense._id,
+                null,
+                expense,
+                req,
+                expense.description || 'مصروف'
+            );
+
             res.status(201).json(expense);
         } catch (err) {
             if (err.message === 'التاريخ والوصف والمبلغ مطلوبة') {
@@ -67,6 +81,19 @@ class ExpensesController {
             if (!expense) {
                 return res.status(404).json({ message: 'المصروف غير موجود' });
             }
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'update',
+                'Expense',
+                req.params.id,
+                null,
+                expense,
+                req,
+                expense.description || 'مصروف'
+            );
 
             res.json(expense);
         } catch (err) {
@@ -87,6 +114,25 @@ class ExpensesController {
             }
 
             res.json({ message: 'تم حذف المصروف بنجاح' });
+
+            // Log audit event asynchronously
+            setImmediate(async () => {
+                try {
+                    const authService = require('../services/authService');
+                    await authService.logAuditEvent(
+                        req.user?.id,
+                        'delete',
+                        'Expense',
+                        req.params.id,
+                        expense,
+                        null,
+                        req,
+                        expense.description || 'مصروف'
+                    );
+                } catch (auditError) {
+                    console.error('❌ Audit logging failed for expense deletion:', auditError.message);
+                }
+            });
         } catch (err) {
             next(err);
         }

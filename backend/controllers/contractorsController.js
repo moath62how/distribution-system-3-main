@@ -1,5 +1,6 @@
 const contractorService = require('../services/contractorService');
 const PDFService = require('../services/pdfServiceUltraFast');
+const CloudinaryService = require('../services/cloudinaryService');
 
 class ContractorsController {
     // Get all contractors
@@ -54,7 +55,27 @@ class ContractorsController {
                 opening_balances: opening_balances || []
             });
 
+            // Send success response immediately
             res.status(201).json(contractor);
+
+            // Log audit event asynchronously
+            setImmediate(async () => {
+                try {
+                    const authService = require('../services/authService');
+                    await authService.logAuditEvent(
+                        req.user.id,
+                        'create',
+                        'Contractor',
+                        contractor.id,
+                        null,
+                        contractor,
+                        req,
+                        name.trim()
+                    );
+                } catch (auditError) {
+                    console.error('❌ Audit logging failed for contractor creation:', auditError.message);
+                }
+            });
         } catch (err) {
             if (err.code === 11000) {
                 return res.status(400).json({ message: 'اسم المقاول موجود بالفعل' });
@@ -99,6 +120,19 @@ class ContractorsController {
                 return res.status(404).json({ message: 'المقاول غير موجود' });
             }
 
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'update',
+                'Contractor',
+                req.params.id,
+                null,
+                contractor.contractor,
+                req,
+                name.trim()
+            );
+
             res.json(contractor);
         } catch (err) {
             if (err.code === 11000) {
@@ -118,6 +152,25 @@ class ContractorsController {
             }
 
             res.json({ message: 'تم حذف المقاول بنجاح' });
+
+            // Log audit event asynchronously
+            setImmediate(async () => {
+                try {
+                    const authService = require('../services/authService');
+                    await authService.logAuditEvent(
+                        req.user?.id,
+                        'delete',
+                        'Contractor',
+                        req.params.id,
+                        contractor,
+                        null,
+                        req,
+                        contractor.name
+                    );
+                } catch (auditError) {
+                    console.error('❌ Audit logging failed for contractor deletion:', auditError.message);
+                }
+            });
         } catch (err) {
             next(err);
         }
@@ -138,14 +191,49 @@ class ContractorsController {
         try {
             const { amount, method, details, note, paid_at, payment_image } = req.body;
 
+            let imageData = null;
+            
+            if (payment_image) {
+                try {
+                    imageData = await CloudinaryService.uploadBase64Image(
+                        payment_image,
+                        `contractors/${req.params.id}/payments`
+                    );
+                } catch (error) {
+                    console.error('Image upload failed:', error);
+                    return res.status(400).json({ 
+                        message: 'فشل رفع الصورة: ' + error.message 
+                    });
+                }
+            }
+
             const payment = await contractorService.addContractorPayment(req.params.id, {
                 amount,
                 method: method?.trim() || '',
                 details: details?.trim() || '',
                 note: note?.trim() || '',
                 paid_at: paid_at ? new Date(paid_at) : new Date(),
-                payment_image
+                payment_image_url: imageData?.url,
+                payment_image_public_id: imageData?.publicId,
+                payment_image_thumbnail: imageData?.thumbnailUrl
             });
+
+            // Get contractor name for audit log
+            const contractor = await contractorService.getContractorById(req.params.id);
+            const contractorName = contractor && contractor.contractor ? contractor.contractor.name : 'مقاول';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'create',
+                'ContractorPayment',
+                payment.id || payment._id,
+                null,
+                payment,
+                req,
+                `دفعة من ${contractorName}`
+            );
 
             res.status(201).json(payment);
         } catch (err) {
@@ -158,22 +246,68 @@ class ContractorsController {
         try {
             const { amount, method, details, note, paid_at, payment_image } = req.body;
 
+            let imageData = null;
+            
+            if (payment_image) {
+                try {
+                    const oldPayment = await contractorService.getPaymentById(req.params.id, req.params.paymentId);
+                    
+                    imageData = await CloudinaryService.uploadBase64Image(
+                        payment_image,
+                        `contractors/${req.params.id}/payments`
+                    );
+                    
+                    if (oldPayment && oldPayment.payment_image_public_id) {
+                        await CloudinaryService.deleteImage(oldPayment.payment_image_public_id);
+                    }
+                } catch (error) {
+                    console.error('Image upload failed:', error);
+                    return res.status(400).json({ 
+                        message: 'فشل رفع الصورة: ' + error.message 
+                    });
+                }
+            }
+
+            const updateData = {
+                amount,
+                method: method?.trim() || '',
+                details: details?.trim() || '',
+                note: note?.trim() || '',
+                paid_at: paid_at ? new Date(paid_at) : new Date()
+            };
+
+            if (imageData) {
+                updateData.payment_image_url = imageData.url;
+                updateData.payment_image_public_id = imageData.publicId;
+                updateData.payment_image_thumbnail = imageData.thumbnailUrl;
+            }
+
             const payment = await contractorService.updateContractorPayment(
                 req.params.id,
                 req.params.paymentId,
-                {
-                    amount,
-                    method: method?.trim() || '',
-                    details: details?.trim() || '',
-                    note: note?.trim() || '',
-                    paid_at: paid_at ? new Date(paid_at) : new Date(),
-                    payment_image
-                }
+                updateData
             );
 
             if (!payment) {
                 return res.status(404).json({ message: 'الدفعة غير موجودة' });
             }
+
+            // Get contractor name for audit log
+            const contractor = await contractorService.getContractorById(req.params.id);
+            const contractorName = contractor && contractor.contractor ? contractor.contractor.name : 'مقاول';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'update',
+                'ContractorPayment',
+                req.params.paymentId,
+                null,
+                payment,
+                req,
+                `دفعة من ${contractorName}`
+            );
 
             res.json(payment);
         } catch (err) {
@@ -192,6 +326,23 @@ class ContractorsController {
             if (!payment) {
                 return res.status(404).json({ message: 'الدفعة غير موجودة' });
             }
+
+            // Get contractor name for audit log
+            const contractor = await contractorService.getContractorById(req.params.id);
+            const contractorName = contractor && contractor.contractor ? contractor.contractor.name : 'مقاول';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'delete',
+                'ContractorPayment',
+                req.params.paymentId,
+                payment.toJSON(),
+                null,
+                req,
+                `دفعة من ${contractorName}`
+            );
 
             res.json({ message: 'تم حذف الدفعة بنجاح' });
         } catch (err) {
@@ -219,6 +370,23 @@ class ContractorsController {
                 reason: reason?.trim() || ''
             });
 
+            // Get contractor name for audit log
+            const contractor = await contractorService.getContractorById(req.params.id);
+            const contractorName = contractor && contractor.contractor ? contractor.contractor.name : 'مقاول';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'create',
+                'Adjustment',
+                adjustment.id || adjustment._id,
+                null,
+                adjustment,
+                req,
+                `تسوية من ${contractorName}`
+            );
+
             res.status(201).json(adjustment);
         } catch (err) {
             next(err);
@@ -243,6 +411,23 @@ class ContractorsController {
                 return res.status(404).json({ message: 'التسوية غير موجودة' });
             }
 
+            // Get contractor name for audit log
+            const contractor = await contractorService.getContractorById(req.params.id);
+            const contractorName = contractor && contractor.contractor ? contractor.contractor.name : 'مقاول';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'update',
+                'Adjustment',
+                req.params.adjustmentId,
+                null,
+                adjustment,
+                req,
+                `تسوية من ${contractorName}`
+            );
+
             res.json(adjustment);
         } catch (err) {
             next(err);
@@ -260,6 +445,23 @@ class ContractorsController {
             if (!adjustment) {
                 return res.status(404).json({ message: 'التسوية غير موجودة' });
             }
+
+            // Get contractor name for audit log
+            const contractor = await contractorService.getContractorById(req.params.id);
+            const contractorName = contractor && contractor.contractor ? contractor.contractor.name : 'مقاول';
+
+            // Log audit event
+            const authService = require('../services/authService');
+            await authService.logAuditEvent(
+                req.user.id,
+                'delete',
+                'Adjustment',
+                req.params.adjustmentId,
+                adjustment,
+                null,
+                req,
+                `تسوية من ${contractorName}`
+            );
 
             res.json({ message: 'تم حذف التسوية بنجاح' });
         } catch (err) {

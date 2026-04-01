@@ -55,23 +55,19 @@ function showModal(modalId) {
     const modal = document.getElementById(modalId);
     console.log('Modal element found:', !!modal);
     if (modal) {
+        console.log('Modal classes before:', modal.className);
+        console.log('Modal display before:', modal.style.display);
+        
         modal.classList.remove('hidden');
         modal.style.display = 'flex';
         modal.classList.add('active');
+        
+        console.log('Modal classes after:', modal.className);
+        console.log('Modal display after:', modal.style.display);
+        console.log('Modal computed display:', window.getComputedStyle(modal).display);
         console.log('Modal should now be visible');
     } else {
         console.error('Modal not found:', modalId);
-    }
-}
-
-function showMessage(containerId, message, type) {
-    const container = document.getElementById(containerId);
-    container.innerHTML = `<div class="message ${type}">${message}</div>`;
-
-    if (type === 'success') {
-        setTimeout(() => {
-            container.innerHTML = '';
-        }, 3000);
     }
 }
 
@@ -450,9 +446,9 @@ function renderPayments(payments) {
         // Image cell
         const imageCell = document.createElement('td');
 
-        if (payment.payment_image && payment.payment_image !== 'null' && payment.payment_image.trim() !== '') {
+        if (payment.payment_image_url && payment.payment_image_url !== 'null' && payment.payment_image_url.trim() !== '') {
             imageCell.innerHTML = `
-                <button class="btn btn-sm btn-secondary" data-image="${payment.payment_image}" onclick="showImageModal(this.getAttribute('data-image'))" title="عرض الصورة">
+                <button class="btn btn-sm btn-secondary" data-image="${payment.payment_image_url}" onclick="showImageModal(this.getAttribute('data-image'))" title="عرض الصورة">
                     <i class="fas fa-image"></i> عرض
                 </button>
             `;
@@ -786,159 +782,18 @@ function setupEventHandlers() {
         }
     });
 
-    // Payment Form
+    // Payment Form - Will be auto-protected by auto-protect-forms.js
+    // Keeping the event listener for backward compatibility but it will be replaced
     document.getElementById('paymentForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-
-        const crusherId = getCrusherIdFromURL();
-        const amount = document.getElementById('paymentAmount').value;
-        const method = document.getElementById('paymentMethod').value;
-        const details = document.getElementById('paymentDetails').value;
-        const date = document.getElementById('paymentDate').value;
-        const note = document.getElementById('paymentNote').value;
-
-        const paymentData = {
-            amount: parseFloat(amount),
-            method, // This will be sent as 'method' but API expects 'payment_method' for crushers
-            date,
-            note
-        };
-
-        // Only add details if it has a value
-        if (details && details.trim()) {
-            paymentData.details = details.trim();
-        }
-
-        // Handle image upload
-        const imageFile = document.getElementById('paymentImage').files[0];
-        if (imageFile) {
-            // Validate file size (max 5MB)
-            if (imageFile.size > 5 * 1024 * 1024) {
-                showMessage('paymentMessage', 'حجم الصورة كبير جداً (الحد الأقصى 5 ميجابايت)', 'error');
-                return;
-            }
-
-            // Validate file type
-            if (!imageFile.type.startsWith('image/')) {
-                showMessage('paymentMessage', 'يرجى اختيار ملف صورة صالح', 'error');
-                return;
-            }
-
-            try {
-                const payment_image = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const result = e.target.result;
-                        console.log('Image read successfully, size:', result.length);
-
-                        // Check if the base64 data is too large (over 1MB when encoded)
-                        if (result.length > 1024 * 1024) {
-                            console.log('Image is large, attempting to compress...');
-                            // Try to compress the image
-                            compressImage(result, 0.7).then(resolve).catch(() => {
-                                console.log('Compression failed, using original');
-                                resolve(result);
-                            });
-                        } else {
-                            resolve(result);
-                        }
-                    };
-                    reader.onerror = (e) => {
-                        console.error('FileReader error:', e);
-                        reject(new Error('فشل في قراءة الصورة'));
-                    };
-                    reader.readAsDataURL(imageFile);
-                });
-                paymentData.payment_image = payment_image;
-            } catch (error) {
-                console.error('Error reading image:', error);
-                showMessage('paymentMessage', 'خطأ في قراءة الصورة: ' + error.message, 'error');
-                return;
-            }
-        }
-
-        console.log('Sending payment data:', paymentData);
-
-        const form = e.target;
-        const editId = form.dataset.editId;
-
-        try {
-            let result;
-            if (editId) {
-                // Update existing payment
-                result = await updatePayment(editId, paymentData);
-                showMessage('paymentMessage', 'تم تحديث الدفعة بنجاح', 'success');
-            } else {
-                // Add new payment
-                result = await addPayment(crusherId, paymentData);
-                showMessage('paymentMessage', 'تم إضافة الدفعة بنجاح', 'success');
-            }
-
-            console.log('Payment result:', result);
-
-            // Clear form fields and edit mode
-            document.getElementById('paymentForm').reset();
-            form.removeAttribute('data-edit-id');
-            document.getElementById('paymentDetailsGroup').style.display = 'none';
-            document.getElementById('paymentImageGroup').style.display = 'none';
-
-            setTimeout(() => {
-                closeModal('paymentModal');
-                loadCrusherDetails(); // Reload data
-            }, 1000);
-        } catch (error) {
-            console.error('Payment error:', error);
-            showMessage('paymentMessage', error.message, 'error');
-        }
+        // This will be replaced by auto-protect-forms.js
     });
 
-    // Adjustment Form
+    // Adjustment Form - Will be auto-protected by auto-protect-forms.js
+    // Keeping the event listener for backward compatibility but it will be replaced
     document.getElementById('adjustmentForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-
-        const crusherId = getCrusherIdFromURL();
-        const amount = document.getElementById('adjustmentAmount').value;
-        const reason = document.getElementById('adjustmentReason').value;
-        const method = document.getElementById('adjustmentMethod').value;
-        const details = document.getElementById('adjustmentDetails').value;
-
-        const adjustmentData = {
-            amount: parseFloat(amount),
-            reason,
-            method
-        };
-
-        // Only add details if it has a value
-        if (details && details.trim()) {
-            adjustmentData.details = details.trim();
-        }
-
-        const form = e.target;
-        const editId = form.dataset.editId;
-
-        try {
-            if (editId) {
-                // Update existing adjustment
-                await updateAdjustment(editId, adjustmentData);
-                showMessage('adjustmentMessage', 'تم تحديث التسوية بنجاح', 'success');
-            } else {
-                // Add new adjustment
-                await addAdjustment(crusherId, adjustmentData);
-                showMessage('adjustmentMessage', 'تم إضافة التسوية بنجاح', 'success');
-            }
-
-            // Clear form fields and edit mode
-            document.getElementById('adjustmentForm').reset();
-            form.removeAttribute('data-edit-id');
-            document.getElementById('adjustmentDetailsGroup').style.display = 'none';
-
-            setTimeout(() => {
-                closeModal('adjustmentModal');
-                loadCrusherDetails(); // Reload data
-            }, 1000);
-        } catch (error) {
-            showMessage('adjustmentMessage', error.message, 'error');
-        }
+        // This will be replaced by auto-protect-forms.js
     });
 
     // Delivery Edit Form
@@ -1242,13 +1097,13 @@ async function loadEditProjects() {
 
 
 
-function openEditCrusherModal() {
-    console.log('openEditCrusherModal called');
+async function openEditCrusherModal() {
+    console.log('=== openEditCrusherModal START ===');
     console.log('crusherData:', crusherData);
 
     if (!crusherData || !crusherData.crusher) {
         console.error('No crusher data available');
-        alert('لا توجد بيانات كسارة للتعديل');
+        showAlert('لا توجد بيانات كسارة للتعديل');
         return;
     }
 
@@ -1257,11 +1112,32 @@ function openEditCrusherModal() {
 
     // Fill form with current data
     document.getElementById('editCrusherName').value = crusher.name || '';
-    document.getElementById('editCrusherOpeningBalance').value = crusher.opening_balance || 0;
+    
+    // Load projects first
+    console.log('Loading projects...');
+    await loadEditProjects();
+    console.log('Projects loaded, count:', editProjectsList.length);
+    
+    // Load opening balances
+    console.log('Loading opening balances...');
+    await loadEditCrusherOpeningBalances();
+    console.log('Opening balances loaded');
 
-    console.log('Showing crusher edit modal...');
-    // Show modal
-    showModal('editCrusherModal');
+    console.log('About to show modal...');
+    const modal = document.getElementById('editCrusherModal');
+    console.log('Modal element:', modal);
+    console.log('Modal classes before:', modal ? modal.className : 'NULL');
+    
+    // Show modal directly
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('active');
+        modal.style.display = 'flex';
+        console.log('Modal classes after:', modal.className);
+        console.log('Modal style.display:', modal.style.display);
+    }
+    
+    console.log('=== openEditCrusherModal END ===');
 }
 
 async function updateCrusher(crusherId, crusherData) {
@@ -1308,7 +1184,7 @@ async function showPaymentDetails(paymentId) {
         // Find payment in current data
         const payment = allPayments.find(p => p.id === paymentId);
         if (!payment) {
-            alert('لم يتم العثور على الدفعة');
+            showAlert('لم يتم العثور على الدفعة');
             return;
         }
 
@@ -1350,12 +1226,12 @@ async function showPaymentDetails(paymentId) {
         }
 
         // Add image if exists
-        if (payment.payment_image) {
+        if (payment.payment_image_url) {
             detailsHTML += `
                 <div class="detail-row">
                     <strong>الصورة:</strong>
                     <div>
-                        <button class="btn btn-sm btn-secondary" onclick="showImageModal('${payment.payment_image}')" style="margin-top: 5px;">
+                        <button class="btn btn-sm btn-secondary" onclick="showImageModal('${payment.payment_image_url}')" style="margin-top: 5px;">
                             <i class="fas fa-image"></i> عرض الصورة
                         </button>
                     </div>
@@ -1372,7 +1248,7 @@ async function showPaymentDetails(paymentId) {
         showModal('paymentDetailsModal');
     } catch (error) {
         console.error('Error viewing payment:', error);
-        alert('حدث خطأ في عرض تفاصيل الدفعة');
+        showAlert('حدث خطأ في عرض تفاصيل الدفعة');
     }
 }
 
@@ -1382,7 +1258,7 @@ async function showAdjustmentDetails(adjustmentId) {
         // Find adjustment in current data
         const adjustment = allAdjustments.find(a => a.id === adjustmentId);
         if (!adjustment) {
-            alert('لم يتم العثور على التسوية');
+            showAlert('لم يتم العثور على التسوية');
             return;
         }
 
@@ -1422,26 +1298,14 @@ async function showAdjustmentDetails(adjustmentId) {
         showModal('adjustmentDetailsModal');
     } catch (error) {
         console.error('Error viewing adjustment:', error);
-        alert('حدث خطأ في عرض تفاصيل التسوية');
+        showAlert('حدث خطأ في عرض تفاصيل التسوية');
     }
 }
 
 function setupEditCrusherHandlers() {
     console.log('Setting up edit crusher handlers...');
-
-    // Edit crusher button
-    const editBtn = document.getElementById('editCrusherBtn');
-    if (editBtn) {
-        console.log('Edit crusher button found, adding event listener');
-        editBtn.addEventListener('click', function () {
-            console.log('Edit crusher button clicked!');
-            openEditCrusherModal();
-        });
-        console.log('Edit crusher event listener added successfully');
-    } else {
-        console.error('Edit crusher button not found!');
-    }
-
+    // Note: Edit crusher button event listener is now at the bottom of the file
+    // to support async/await and loading states
 }
 
 // Initialize
@@ -1469,7 +1333,7 @@ window.showImageModal = function (imageData) {
 
     // Check if imageData is valid
     if (!imageData || imageData === 'null' || imageData === 'undefined' || imageData.trim() === '') {
-        alert('لا توجد صورة لعرضها');
+        showAlert('لا توجد صورة لعرضها');
         return;
     }
 
@@ -1480,7 +1344,7 @@ window.showImageModal = function (imageData) {
     // Add error handler for the image
     modalImage.onerror = function () {
         console.error('Failed to load image:', imageData.substring(0, 100));
-        alert('فشل في تحميل الصورة');
+        showAlert('فشل في تحميل الصورة');
         closeModal('imageModal');
     };
 
@@ -1505,7 +1369,7 @@ window.editPayment = function (paymentId) {
     console.log('editPayment called with ID:', paymentId);
     const payment = allPayments.find(p => p.id === paymentId);
     if (!payment) {
-        alert('لم يتم العثور على الدفعة');
+        showAlert('لم يتم العثور على الدفعة');
         return;
     }
 
@@ -1536,9 +1400,17 @@ window.editPayment = function (paymentId) {
     showModal('paymentModal');
 };
 
-window.deletePayment = function (paymentId) {
+window.deletePayment = async function (paymentId) {
     console.log('deletePayment called with ID:', paymentId);
-    if (!confirm('هل أنت متأكد من حذف هذه الدفعة؟')) {
+    
+    const confirmed = await showConfirmDialog(
+        'تأكيد الحذف',
+        'هل أنت متأكد من حذف هذه الدفعة؟',
+        'نعم، احذف',
+        'إلغاء'
+    );
+    
+    if (!confirmed) {
         return;
     }
 
@@ -1554,12 +1426,12 @@ window.deletePayment = function (paymentId) {
             return response.json();
         })
         .then(() => {
-            alert('تم حذف الدفعة بنجاح');
+            showAlert('تم حذف الدفعة بنجاح');
             loadCrusherDetails();
         })
         .catch(error => {
             console.error('Error deleting payment:', error);
-            alert('خطأ في حذف الدفعة: ' + error.message);
+            showAlert('خطأ في حذف الدفعة: ' + error.message);
         });
 };
 
@@ -1575,7 +1447,7 @@ window.editAdjustment = function (adjustmentId) {
     console.log('editAdjustment called with ID:', adjustmentId);
     const adjustment = allAdjustments.find(a => a.id === adjustmentId);
     if (!adjustment) {
-        alert('لم يتم العثور على التسوية');
+        showAlert('لم يتم العثور على التسوية');
         return;
     }
 
@@ -1602,9 +1474,17 @@ window.editAdjustment = function (adjustmentId) {
     showModal('adjustmentModal');
 };
 
-window.deleteAdjustment = function (adjustmentId) {
+window.deleteAdjustment = async function (adjustmentId) {
     console.log('deleteAdjustment called with ID:', adjustmentId);
-    if (!confirm('هل أنت متأكد من حذف هذه التسوية؟')) {
+    
+    const confirmed = await showConfirmDialog(
+        'تأكيد الحذف',
+        'هل أنت متأكد من حذف هذه التسوية؟',
+        'نعم، احذف',
+        'إلغاء'
+    );
+    
+    if (!confirmed) {
         return;
     }
 
@@ -1620,12 +1500,12 @@ window.deleteAdjustment = function (adjustmentId) {
             return response.json();
         })
         .then(() => {
-            alert('تم حذف التسوية بنجاح');
+            showAlert('تم حذف التسوية بنجاح');
             loadCrusherDetails();
         })
         .catch(error => {
             console.error('Error deleting adjustment:', error);
-            alert('خطأ في حذف التسوية: ' + error.message);
+            showAlert('خطأ في حذف التسوية: ' + error.message);
         });
 };
 // CRUD functions for deliveries
@@ -1636,7 +1516,7 @@ window.editDelivery = async function (deliveryId) {
         // Find delivery in current data
         const delivery = allDeliveries.find(d => d.id === deliveryId);
         if (!delivery) {
-            alert('لم يتم العثور على التسليم');
+            showAlert('لم يتم العثور على التسليم');
             return;
         }
 
@@ -1657,13 +1537,21 @@ window.editDelivery = async function (deliveryId) {
         showModal('deliveryEditModal');
     } catch (error) {
         console.error('Error editing delivery:', error);
-        alert('حدث خطأ في تحميل بيانات التسليم');
+        showAlert('حدث خطأ في تحميل بيانات التسليم');
     }
 };
 
-window.deleteDelivery = function (deliveryId) {
+window.deleteDelivery = async function (deliveryId) {
     console.log('deleteDelivery called with ID:', deliveryId);
-    if (!confirm('هل أنت متأكد من حذف هذه التسليمة؟ تحذير: هذا سيؤثر على الحسابات المحاسبية.')) {
+    
+    const confirmed = await showConfirmDialog(
+        'تأكيد الحذف',
+        'هل أنت متأكد من حذف هذه التسليمة؟ تحذير: هذا سيؤثر على الحسابات المحاسبية.',
+        'نعم، احذف',
+        'إلغاء'
+    );
+    
+    if (!confirmed) {
         return;
     }
 
@@ -1677,12 +1565,12 @@ window.deleteDelivery = function (deliveryId) {
             return response.json();
         })
         .then(() => {
-            alert('تم حذف التسليمة بنجاح');
+            showAlert('تم حذف التسليمة بنجاح');
             loadCrusherDetails();
         })
         .catch(error => {
             console.error('Error deleting delivery:', error);
-            alert('خطأ في حذف التسليمة: ' + error.message);
+            showAlert('خطأ في حذف التسليمة: ' + error.message);
         });
 };
 // Report Functions
@@ -1692,7 +1580,7 @@ window.generateDeliveriesReport = async function () {
     const toDate = document.getElementById('deliveriesToDate').value;
 
     if (!fromDate || !toDate) {
-        alert('يرجى تحديد فترة زمنية للتقرير');
+        showAlert('يرجى تحديد فترة زمنية للتقرير');
         return;
     }
 
@@ -1701,7 +1589,7 @@ window.generateDeliveriesReport = async function () {
         window.open(url, '_blank');
     } catch (error) {
         console.error('Error generating deliveries report:', error);
-        alert('حدث خطأ في إنشاء التقرير');
+        showAlert('حدث خطأ في إنشاء التقرير');
     }
 };
 
@@ -1716,7 +1604,7 @@ window.generateAccountStatement = async function () {
         toDate = document.getElementById('statementToDate').value;
 
         if (!fromDate || !toDate) {
-            alert('يرجى تحديد فترة زمنية لكشف الحساب');
+            showAlert('يرجى تحديد فترة زمنية لكشف الحساب');
             return;
         }
     }
@@ -1729,7 +1617,7 @@ window.generateAccountStatement = async function () {
         window.open(url, '_blank');
     } catch (error) {
         console.error('Error generating account statement:', error);
-        alert('حدث خطأ في إنشاء كشف الحساب');
+        showAlert('حدث خطأ في إنشاء كشف الحساب');
     }
 };
 
@@ -1823,25 +1711,14 @@ async function loadEditCrusherOpeningBalances() {
     const container = document.getElementById('editCrusherOpeningBalancesContainer');
     container.innerHTML = '';
     
-    // Load projects for dropdown
-    await loadEditProjectsList();
-    
+    // Projects should already be loaded by loadEditProjects()
     // Add existing opening balances
     crusherData.opening_balances.forEach(ob => {
         addEditCrusherOpeningBalanceRow(ob);
     });
 }
 
-async function loadEditProjectsList() {
-    try {
-        const response = await authManager.makeAuthenticatedRequest(`${API_BASE}/projects`);
-        const data = await response.json();
-        editProjectsList = data.projects || [];
-    } catch (error) {
-        console.error('Error loading projects:', error);
-        editProjectsList = [];
-    }
-}
+// (Removed duplicate loadEditProjectsList - using loadEditProjects instead)
 
 function addEditCrusherOpeningBalanceRow(existingData = null) {
     const container = document.getElementById('editCrusherOpeningBalancesContainer');
@@ -1859,11 +1736,11 @@ function addEditCrusherOpeningBalanceRow(existingData = null) {
     const projectCol = document.createElement('div');
     const projectLabel = document.createElement('label');
     projectLabel.style.cssText = 'display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: 500;';
-    projectLabel.textContent = 'المشروع';
+    projectLabel.textContent = 'في حساب (المشروع/العميل)';
     const projectSelect = document.createElement('select');
     projectSelect.className = 'form-input crusher-opening-balance-project';
     projectSelect.required = true;
-    projectSelect.innerHTML = '<option value="">اختر المشروع</option>';
+    projectSelect.innerHTML = '<option value="">اختر المشروع/العميل</option>';
     
     editProjectsList.forEach(project => {
         const option = document.createElement('option');
@@ -1893,6 +1770,11 @@ function addEditCrusherOpeningBalanceRow(existingData = null) {
         amountInput.value = existingData.amount || 0;
     }
     
+    // Add help text
+    const amountHelp = document.createElement('small');
+    amountHelp.style.cssText = 'display: block; margin-top: 5px; font-size: 0.75rem; color: var(--gray-600);';
+    amountHelp.textContent = 'موجب = نحن مدينون لهم | سالب = هم مدينون لنا';
+    
     // Add event listener to show/hide project field based on amount
     amountInput.addEventListener('input', () => {
         const amount = parseFloat(amountInput.value) || 0;
@@ -1900,23 +1782,42 @@ function addEditCrusherOpeningBalanceRow(existingData = null) {
             // Positive: we owe them, must select project
             projectCol.style.display = 'block';
             projectSelect.required = true;
-        } else {
-            // Negative or zero: they owe us, no project needed
+            amountHelp.style.color = 'var(--danger)';
+            amountHelp.textContent = '⚠️ يجب تحديد المشروع/العميل للرصيد الموجب';
+        } else if (amount < 0) {
+            // Negative: they owe us, no project needed
             projectCol.style.display = 'none';
             projectSelect.required = false;
             projectSelect.value = '';  // Clear selection
+            amountHelp.style.color = 'var(--success)';
+            amountHelp.textContent = '✓ رصيد سالب (هم مدينون لنا) - لا يحتاج مشروع';
+        } else {
+            projectCol.style.display = 'none';
+            projectSelect.required = false;
+            projectSelect.value = '';
+            amountHelp.style.color = 'var(--gray-600)';
+            amountHelp.textContent = 'موجب = نحن مدينون لهم | سالب = هم مدينون لنا';
         }
     });
     
     // Initial state based on existing amount
     const initialAmount = parseFloat(amountInput.value) || 0;
-    if (initialAmount <= 0) {
+    if (initialAmount > 0) {
+        amountHelp.style.color = 'var(--danger)';
+        amountHelp.textContent = '⚠️ يجب تحديد المشروع/العميل للرصيد الموجب';
+    } else if (initialAmount < 0) {
+        projectCol.style.display = 'none';
+        projectSelect.required = false;
+        amountHelp.style.color = 'var(--success)';
+        amountHelp.textContent = '✓ رصيد سالب (هم مدينون لنا) - لا يحتاج مشروع';
+    } else {
         projectCol.style.display = 'none';
         projectSelect.required = false;
     }
     
     amountCol.appendChild(amountLabel);
     amountCol.appendChild(amountInput);
+    amountCol.appendChild(amountHelp);
     
     // Description column
     const descCol = document.createElement('div');
@@ -1940,7 +1841,7 @@ function addEditCrusherOpeningBalanceRow(existingData = null) {
     const deleteBtn = document.createElement('button');
     deleteBtn.type = 'button';
     deleteBtn.className = 'btn btn-sm btn-danger';
-    deleteBtn.textContent = '<i class="fas fa-trash"></i>';
+    deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
     deleteBtn.onclick = () => row.remove();
     deleteCol.appendChild(deleteBtn);
     
@@ -1989,16 +1890,33 @@ function getEditCrusherOpeningBalances() {
 }
 
 // Add event listener for add opening balance button
-document.getElementById('addEditCrusherOpeningBalanceBtn')?.addEventListener('click', () => {
+document.getElementById('addEditCrusherOpeningBalanceBtn')?.addEventListener('click', async () => {
+    // Make sure projects are loaded before adding a new row
+    if (editProjectsList.length === 0) {
+        console.log('Projects not loaded, loading now...');
+        await loadEditProjects();
+    }
     addEditCrusherOpeningBalanceRow();
 });
 
 // Update edit crusher button to load opening balances
-document.getElementById('editCrusherBtn')?.addEventListener('click', async () => {
-    if (crusherData && crusherData.crusher) {
-        document.getElementById('editCrusherName').value = crusherData.crusher.name;
-        await loadEditCrusherOpeningBalances();
-        showModal('editCrusherModal');
+document.getElementById('editCrusherBtn')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const originalHTML = btn.innerHTML;
+    
+    try {
+        // Show loading state
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحميل...';
+        
+        await openEditCrusherModal();
+    } catch (error) {
+        console.error('Error opening edit modal:', error);
+        showAlert('حدث خطأ في تحميل البيانات');
+    } finally {
+        // Restore button state
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
     }
 });
 

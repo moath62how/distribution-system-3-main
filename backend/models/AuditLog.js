@@ -27,6 +27,12 @@ const auditLogSchema = new mongoose.Schema({
   entity_id: {
     type: mongoose.Schema.Types.ObjectId
   },
+  entity_name: {
+    type: String
+  },
+  description: {
+    type: String
+  },
   old_values: {
     type: mongoose.Schema.Types.Mixed
   },

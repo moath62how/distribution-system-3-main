@@ -4,6 +4,8 @@ const employeeSchema = new mongoose.Schema({
     name: {
         type: String,
         required: true,
+        unique: true,
+        trim: true,
         maxlength: 255
     },
     job_title: {
@@ -44,7 +46,15 @@ const employeeSchema = new mongoose.Schema({
     assigned_projects: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Client'
-    }]
+    }],
+    deleted_at: {
+        type: Date,
+        default: null
+    },
+    is_deleted: {
+        type: Boolean,
+        default: false
+    }
 }, {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
     toJSON: { getters: true },
@@ -52,7 +62,7 @@ const employeeSchema = new mongoose.Schema({
 });
 
 // Indexes for efficient queries
-employeeSchema.index({ name: 1 });
+// Note: name already has unique index from schema definition above
 employeeSchema.index({ status: 1 });
 employeeSchema.index({ start_working_date: 1 });
 

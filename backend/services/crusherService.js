@@ -1,10 +1,11 @@
 const { Crusher, Delivery, CrusherPayment, Adjustment } = require('../models');
+const CloudinaryService = require('./cloudinaryService');
 
 const toNumber = (v) => Number(v || 0);
 
 class CrusherService {
     static async getAllCrushers() {
-        const crushers = await Crusher.find().sort({ name: 1 });
+        const crushers = await Crusher.find({ is_deleted: { $ne: true } }).sort({ name: 1 });
 
         // Calculate totals for each crusher
         const result = await Promise.all(
@@ -47,12 +48,15 @@ class CrusherService {
             .populate('contractor_id', 'name')
             .sort({ created_at: -1 });
 
-        const payments = await CrusherPayment.find({ crusher_id: id })
-            .sort({ paid_at: -1 });
+        const payments = await CrusherPayment.find({ 
+            crusher_id: id,
+            is_deleted: { $ne: true }
+        }).sort({ paid_at: -1 });
 
         const adjustments = await Adjustment.find({
             entity_type: 'crusher',
-            entity_id: id
+            entity_id: id,
+            is_deleted: { $ne: true }
         }).sort({ created_at: -1 });
 
         // Get opening balances
@@ -116,7 +120,8 @@ class CrusherService {
                 details: p.details,
                 note: p.note,
                 paid_at: p.paid_at,
-                payment_image: p.payment_image
+                payment_image_url: p.payment_image_url,
+                payment_image_thumbnail: p.payment_image_thumbnail
             })),
             adjustments: adjustments.map(a => ({
                 id: a._id,
@@ -133,6 +138,18 @@ class CrusherService {
 
     static async createCrusher(data) {
         const { CrusherOpeningBalance } = require('../models');
+
+        // Check if crusher with same name already exists
+        const existingCrusher = await Crusher.findOne({ 
+            name: data.name.trim(),
+            is_deleted: { $ne: true }
+        });
+
+        if (existingCrusher) {
+            const error = new Error('اسم الكسارة موجود بالفعل');
+            error.code = 11000; // MongoDB duplicate key error code
+            throw error;
+        }
 
         const crusher = new Crusher({
             name: data.name,
@@ -296,7 +313,18 @@ class CrusherService {
     }
 
     static async deleteCrusher(id) {
-        return await Crusher.findByIdAndDelete(id);
+        const crusher = await Crusher.findById(id);
+        
+        if (!crusher) {
+            return null;
+        }
+
+        // Soft delete
+        crusher.is_deleted = true;
+        crusher.deleted_at = new Date();
+        await crusher.save();
+
+        return crusher;
     }
 
     static async computeCrusherTotals(crusherId) {
@@ -314,8 +342,15 @@ class CrusherService {
         const opening = openingBalances.reduce((sum, ob) => sum + toNumber(ob.amount), 0);
 
         const deliveries = await Delivery.find({ crusher_id: crusherId });
-        const payments = await CrusherPayment.find({ crusher_id: crusherId });
-        const adjustments = await Adjustment.find({ entity_type: 'crusher', entity_id: crusherId });
+        const payments = await CrusherPayment.find({ 
+            crusher_id: crusherId,
+            is_deleted: { $ne: true }
+        });
+        const adjustments = await Adjustment.find({ 
+            entity_type: 'crusher', 
+            entity_id: crusherId,
+            is_deleted: { $ne: true }
+        });
 
         // Calculate totals for crusher perspective
         const totalRequired = deliveries.reduce((sum, d) => sum + toNumber(d.crusher_total_cost), 0);
@@ -370,7 +405,10 @@ class CrusherService {
 
     // Payment methods
     static async getCrusherPayments(crusherId) {
-        return await CrusherPayment.find({ crusher_id: crusherId }).sort({ paid_at: -1 });
+        return await CrusherPayment.find({ 
+            crusher_id: crusherId,
+            is_deleted: { $ne: true }
+        }).sort({ paid_at: -1 });
     }
 
     static async addCrusherPayment(crusherId, data) {
@@ -381,7 +419,9 @@ class CrusherService {
             details: data.details,
             note: data.note,
             paid_at: data.paid_at,
-            payment_image: data.payment_image
+            payment_image_url: data.payment_image_url,
+            payment_image_public_id: data.payment_image_public_id,
+            payment_image_thumbnail: data.payment_image_thumbnail
         });
 
         await payment.save();
@@ -394,21 +434,36 @@ class CrusherService {
             details: payment.details,
             note: payment.note,
             paid_at: payment.paid_at,
-            payment_image: payment.payment_image
+            payment_image_url: payment.payment_image_url,
+            payment_image_thumbnail: payment.payment_image_thumbnail
         };
     }
 
+    static async getPaymentById(crusherId, paymentId) {
+        return await CrusherPayment.findOne({
+            _id: paymentId,
+            crusher_id: crusherId
+        });
+    }
+
     static async updateCrusherPayment(crusherId, paymentId, data) {
+        const updateData = {
+            amount: toNumber(data.amount),
+            method: data.method,
+            details: data.details,
+            note: data.note,
+            paid_at: data.paid_at
+        };
+
+        if (data.payment_image_url) {
+            updateData.payment_image_url = data.payment_image_url;
+            updateData.payment_image_public_id = data.payment_image_public_id;
+            updateData.payment_image_thumbnail = data.payment_image_thumbnail;
+        }
+
         const payment = await CrusherPayment.findOneAndUpdate(
             { _id: paymentId, crusher_id: crusherId },
-            {
-                amount: toNumber(data.amount),
-                method: data.method,
-                details: data.details,
-                note: data.note,
-                paid_at: data.paid_at,
-                payment_image: data.payment_image
-            },
+            updateData,
             { new: true }
         );
 
@@ -424,22 +479,36 @@ class CrusherService {
             details: payment.details,
             note: payment.note,
             paid_at: payment.paid_at,
-            payment_image: payment.payment_image
+            payment_image_url: payment.payment_image_url,
+            payment_image_thumbnail: payment.payment_image_thumbnail
         };
     }
 
     static async deleteCrusherPayment(crusherId, paymentId) {
-        return await CrusherPayment.findOneAndDelete({
+        const payment = await CrusherPayment.findOne({
             _id: paymentId,
-            crusher_id: crusherId
+            crusher_id: crusherId,
+            is_deleted: { $ne: true }
         });
+
+        if (!payment) {
+            return null;
+        }
+
+        // Soft delete
+        payment.is_deleted = true;
+        payment.deleted_at = new Date();
+        await payment.save();
+
+        return payment;
     }
 
     // Adjustment methods
     static async getCrusherAdjustments(crusherId) {
         return await Adjustment.find({
             entity_type: 'crusher',
-            entity_id: crusherId
+            entity_id: crusherId,
+            is_deleted: { $ne: true }
         }).sort({ created_at: -1 });
     }
 
@@ -500,11 +569,22 @@ class CrusherService {
     }
 
     static async deleteCrusherAdjustment(crusherId, adjustmentId) {
-        return await Adjustment.findOneAndDelete({
+        const adjustment = await Adjustment.findOne({
             _id: adjustmentId,
             entity_type: 'crusher',
             entity_id: crusherId
         });
+
+        if (!adjustment) {
+            return null;
+        }
+
+        // Soft delete
+        adjustment.is_deleted = true;
+        adjustment.deleted_at = new Date();
+        await adjustment.save();
+
+        return adjustment;
     }
 }
 

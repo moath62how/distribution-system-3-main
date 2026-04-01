@@ -1,10 +1,11 @@
 const { Contractor, Delivery, ContractorPayment, Adjustment } = require('../models');
+const CloudinaryService = require('./cloudinaryService');
 
 const toNumber = (v) => Number(v || 0);
 
 class ContractorService {
     static async getAllContractors() {
-        const contractors = await Contractor.find().sort({ name: 1 });
+        const contractors = await Contractor.find({ is_deleted: { $ne: true } }).sort({ name: 1 });
 
         // Calculate totals for each contractor
         const result = await Promise.all(
@@ -46,12 +47,15 @@ class ContractorService {
             .populate('crusher_id', 'name')
             .sort({ created_at: -1 });
 
-        const payments = await ContractorPayment.find({ contractor_id: id })
-            .sort({ paid_at: -1 });
+        const payments = await ContractorPayment.find({ 
+            contractor_id: id,
+            is_deleted: { $ne: true }
+        }).sort({ paid_at: -1 });
 
         const adjustments = await Adjustment.find({
             entity_type: 'contractor',
-            entity_id: id
+            entity_id: id,
+            is_deleted: { $ne: true }
         }).sort({ created_at: -1 });
 
         // Get opening balances
@@ -108,7 +112,8 @@ class ContractorService {
                 details: p.details,
                 note: p.note,
                 paid_at: p.paid_at,
-                payment_image: p.payment_image
+                payment_image_url: p.payment_image_url,
+                payment_image_thumbnail: p.payment_image_thumbnail
             })),
             adjustments: adjustments.map(a => ({
                 id: a._id,
@@ -122,6 +127,18 @@ class ContractorService {
 
     static async createContractor(data) {
         const { ContractorOpeningBalance } = require('../models');
+
+        // Check if contractor with same name already exists
+        const existingContractor = await Contractor.findOne({ 
+            name: data.name.trim(),
+            is_deleted: { $ne: true }
+        });
+
+        if (existingContractor) {
+            const error = new Error('اسم المقاول موجود بالفعل');
+            error.code = 11000;
+            throw error;
+        }
 
         const contractor = new Contractor({
             name: data.name,
@@ -244,15 +261,33 @@ class ContractorService {
     }
 
     static async deleteContractor(id) {
-        return await Contractor.findByIdAndDelete(id);
+        const contractor = await Contractor.findById(id);
+        
+        if (!contractor) {
+            return null;
+        }
+
+        // Soft delete
+        contractor.is_deleted = true;
+        contractor.deleted_at = new Date();
+        await contractor.save();
+
+        return contractor;
     }
 
     static async computeContractorTotals(contractorId) {
         const { ContractorOpeningBalance } = require('../models');
         
         const deliveries = await Delivery.find({ contractor_id: contractorId });
-        const payments = await ContractorPayment.find({ contractor_id: contractorId });
-        const adjustments = await Adjustment.find({ entity_type: 'contractor', entity_id: contractorId });
+        const payments = await ContractorPayment.find({ 
+            contractor_id: contractorId,
+            is_deleted: { $ne: true }
+        });
+        const adjustments = await Adjustment.find({ 
+            entity_type: 'contractor', 
+            entity_id: contractorId,
+            is_deleted: { $ne: true }
+        });
 
         // Get project-based opening balances
         const openingBalances = await ContractorOpeningBalance.find({
@@ -281,7 +316,10 @@ class ContractorService {
 
     // Payment methods
     static async getContractorPayments(contractorId) {
-        return await ContractorPayment.find({ contractor_id: contractorId }).sort({ paid_at: -1 });
+        return await ContractorPayment.find({ 
+            contractor_id: contractorId,
+            is_deleted: { $ne: true }
+        }).sort({ paid_at: -1 });
     }
 
     static async addContractorPayment(contractorId, data) {
@@ -292,7 +330,9 @@ class ContractorService {
             details: data.details,
             note: data.note,
             paid_at: data.paid_at,
-            payment_image: data.payment_image
+            payment_image_url: data.payment_image_url,
+            payment_image_public_id: data.payment_image_public_id,
+            payment_image_thumbnail: data.payment_image_thumbnail
         });
 
         await payment.save();
@@ -305,21 +345,36 @@ class ContractorService {
             details: payment.details,
             note: payment.note,
             paid_at: payment.paid_at,
-            payment_image: payment.payment_image
+            payment_image_url: payment.payment_image_url,
+            payment_image_thumbnail: payment.payment_image_thumbnail
         };
     }
 
+    static async getPaymentById(contractorId, paymentId) {
+        return await ContractorPayment.findOne({
+            _id: paymentId,
+            contractor_id: contractorId
+        });
+    }
+
     static async updateContractorPayment(contractorId, paymentId, data) {
+        const updateData = {
+            amount: toNumber(data.amount),
+            method: data.method,
+            details: data.details,
+            note: data.note,
+            paid_at: data.paid_at
+        };
+
+        if (data.payment_image_url) {
+            updateData.payment_image_url = data.payment_image_url;
+            updateData.payment_image_public_id = data.payment_image_public_id;
+            updateData.payment_image_thumbnail = data.payment_image_thumbnail;
+        }
+
         const payment = await ContractorPayment.findOneAndUpdate(
             { _id: paymentId, contractor_id: contractorId },
-            {
-                amount: toNumber(data.amount),
-                method: data.method,
-                details: data.details,
-                note: data.note,
-                paid_at: data.paid_at,
-                payment_image: data.payment_image
-            },
+            updateData,
             { new: true }
         );
 
@@ -335,22 +390,36 @@ class ContractorService {
             details: payment.details,
             note: payment.note,
             paid_at: payment.paid_at,
-            payment_image: payment.payment_image
+            payment_image_url: payment.payment_image_url,
+            payment_image_thumbnail: payment.payment_image_thumbnail
         };
     }
 
     static async deleteContractorPayment(contractorId, paymentId) {
-        return await ContractorPayment.findOneAndDelete({
+        const payment = await ContractorPayment.findOne({
             _id: paymentId,
-            contractor_id: contractorId
+            contractor_id: contractorId,
+            is_deleted: { $ne: true }
         });
+
+        if (!payment) {
+            return null;
+        }
+
+        // Soft delete
+        payment.is_deleted = true;
+        payment.deleted_at = new Date();
+        await payment.save();
+
+        return payment;
     }
 
     // Adjustment methods
     static async getContractorAdjustments(contractorId) {
         return await Adjustment.find({
             entity_type: 'contractor',
-            entity_id: contractorId
+            entity_id: contractorId,
+            is_deleted: { $ne: true }
         }).sort({ created_at: -1 });
     }
 
@@ -403,11 +472,22 @@ class ContractorService {
     }
 
     static async deleteContractorAdjustment(contractorId, adjustmentId) {
-        return await Adjustment.findOneAndDelete({
+        const adjustment = await Adjustment.findOne({
             _id: adjustmentId,
             entity_type: 'contractor',
             entity_id: contractorId
         });
+
+        if (!adjustment) {
+            return null;
+        }
+
+        // Soft delete
+        adjustment.is_deleted = true;
+        adjustment.deleted_at = new Date();
+        await adjustment.save();
+
+        return adjustment;
     }
 
     // Report generation methods
@@ -515,6 +595,7 @@ class ContractorService {
             .populate('crusher_id', 'name')
             .sort({ created_at: 1 });
 
+        paymentDateFilter.is_deleted = { $ne: true };
         const payments = await ContractorPayment.find(paymentDateFilter)
             .sort({ paid_at: 1 });
 
