@@ -166,20 +166,26 @@ async function bootstrap() {
   // API metrics endpoint - Updated for MongoDB (Manager + Accountant only)
   app.get('/api/metrics', requireRole(['manager', 'accountant']), async (req, res, next) => {
     try {
-      const totalProjects = await Project.countDocuments({ is_deleted: { $ne: true } });
-      const clientsCount = await Client.countDocuments({ is_deleted: { $ne: true } });
-      const crushersCount = await Crusher.countDocuments({ is_deleted: { $ne: true } });
-      const contractorsCount = await Contractor.countDocuments({ is_deleted: { $ne: true } });
-      const employeesCount = await Employee.countDocuments({ is_deleted: { $ne: true } });
-      const deliveriesCount = await Delivery.countDocuments({ is_deleted: { $ne: true } });
-
-      // New sections counts
-      const administrationCount = await Administration.countDocuments({ is_deleted: { $ne: true } });
-      const suppliersCount = await Supplier.countDocuments({ is_deleted: { $ne: true } });
-
-      // Get all non-deleted deliveries for proper calculations
-      const deliveries = await Delivery.find({ is_deleted: { $ne: true } });
-
+      const [
+        totalProjects,
+        clientsCount,
+        crushersCount,
+        contractorsCount,
+        employeesCount,
+        deliveriesCount,
+        administrationCount,
+        suppliersCount, deliveries
+      ] = await Promise.all([
+        Project.countDocuments({ is_deleted: { $ne: true } }),
+        Client.countDocuments({ is_deleted: { $ne: true } }),
+        Crusher.countDocuments({ is_deleted: { $ne: true } }),
+        Contractor.countDocuments({ is_deleted: { $ne: true } }),
+        Employee.countDocuments({ is_deleted: { $ne: true } }),
+        Delivery.countDocuments({ is_deleted: { $ne: true } }),
+        Administration.countDocuments({ is_deleted: { $ne: true } }),
+        Supplier.countDocuments({ is_deleted: { $ne: true } }),
+        Delivery.find({ is_deleted: { $ne: true } })
+      ]);
       // CORRECT FINANCIAL LOGIC (excluding soft-deleted records):
 
       // 1. Total Sales (Revenue from clients - what clients owe us)
@@ -279,11 +285,19 @@ async function bootstrap() {
       const totalCashPayments = Number(clientPayments || 0) + Number(contractorPayments || 0) + Number(crusherPayments || 0) + Number(totalEmployeePayments || 0) + Number(totalAdministrationPayments || 0);
 
       // 11. Calculate outstanding balances (excluding soft-deleted)
-      const clients = await Client.find({ is_deleted: { $ne: true } });
-      const suppliers = await Supplier.find({ is_deleted: { $ne: true } });
-      const crushers = await Crusher.find({ is_deleted: { $ne: true } });
-      const contractors = await Contractor.find({ is_deleted: { $ne: true } });
-      const employees = await Employee.find({ is_deleted: { $ne: true } });
+      const [
+        clients,
+        suppliers,
+        crushers,
+        contractors,
+        employees
+      ] = await Promise.all([
+        Client.find({ is_deleted: { $ne: true } }).lean(),
+        Supplier.find({ is_deleted: { $ne: true } }).lean(),
+        Crusher.find({ is_deleted: { $ne: true } }).lean(),
+        Contractor.find({ is_deleted: { $ne: true } }).lean(),
+        Employee.find({ is_deleted: { $ne: true } }).lean()
+      ]);
 
       // Calculate balances for each entity using services
       const ClientService = require('./services/clientService');
@@ -378,7 +392,7 @@ async function bootstrap() {
         .reduce((sum, b) => sum + b, 0);
 
       // Total Receivables = All money owed TO us (الديون اللي لينا)
-      const totalReceivables = 
+      const totalReceivables =
         totalClientBalancesPositive +
         crushersNegativeNet +
         contractorsNegativeBalance +
@@ -386,7 +400,7 @@ async function bootstrap() {
         employeesPositiveBalance;
 
       // Total Payables = All money we owe TO others (المستحقات اللي علينا)
-      const totalPayables = 
+      const totalPayables =
         totalSupplierBalances +
         totalCrusherBalances +
         totalContractorBalances +
