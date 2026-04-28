@@ -940,14 +940,23 @@ function toggleDateRange() {
 }
 
 // Generate account statement
-function generateAccountStatement() {
+async function generateAccountStatement() {
+    if (!currentEmployeeId) {
+        Swal.fire({
+            icon: 'error',
+            title: 'خطأ',
+            text: 'معرف الموظف غير موجود'
+        });
+        return;
+    }
+
     const useCustomRange = document.getElementById('useCustomDateRange').checked;
     let url = `/api/employees/${currentEmployeeId}/reports/statement`;
-    
+
     if (useCustomRange) {
         const fromDate = document.getElementById('statementFromDate').value;
         const toDate = document.getElementById('statementToDate').value;
-        
+
         if (!fromDate || !toDate) {
             Swal.fire({
                 icon: 'warning',
@@ -956,12 +965,36 @@ function generateAccountStatement() {
             });
             return;
         }
-        
+
         url += `?from=${fromDate}&to=${toDate}`;
     }
-    
-    // Open in new tab to download PDF
-    window.open(url, '_blank');
+
+    // Show loading message
+    Swal.fire({
+        title: 'جاري إنشاء التقرير...',
+        text: 'يرجى الانتظار',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+
+    try {
+        // Open in new tab to download PDF
+        window.open(url, '_blank');
+
+        // Close loading after a short delay
+        setTimeout(() => {
+            Swal.close();
+        }, 1000);
+    } catch (error) {
+        console.error('Error generating account statement:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'خطأ',
+            text: 'تعذر إنشاء كشف الحساب'
+        });
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -1026,11 +1059,11 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Payment method change handler - show/hide conditional fields
-    document.getElementById('paymentMethod').addEventListener('change', function(e) {
+    document.getElementById('paymentMethod').addEventListener('change', function (e) {
         const method = e.target.value;
         const detailsGroup = document.getElementById('paymentDetailsGroup');
         const imageGroup = document.getElementById('paymentImageGroup');
-        
+
         if (method && method !== 'نقدي') {
             detailsGroup.classList.remove('hidden');
             imageGroup.classList.remove('hidden');
@@ -1041,11 +1074,11 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Adjustment method change handler - show/hide conditional fields
-    document.getElementById('adjustmentMethod').addEventListener('change', function(e) {
+    document.getElementById('adjustmentMethod').addEventListener('change', function (e) {
         const method = e.target.value;
         const detailsGroup = document.getElementById('adjustmentDetailsGroup');
         const imageGroup = document.getElementById('adjustmentImageGroup');
-        
+
         if (method && method !== 'نقدي' && method !== 'تعديل حسابي') {
             detailsGroup.classList.remove('hidden');
             imageGroup.classList.remove('hidden');

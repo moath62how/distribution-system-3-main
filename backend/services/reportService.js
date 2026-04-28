@@ -1123,8 +1123,8 @@ class ReportService {
         }
         const adjustments = await Adjustment.find(adjustmentsQuery).sort({ created_at: 1 });
 
-        // Calculate balance
-        const balanceData = await payrollService.calculateEmployeeBalance(employeeId);
+        // Calculate balance - pass the employee object, not just the ID
+        const balanceData = await payrollService.calculateEmployeeBalance(employee);
 
         // Format date range text
         let dateRangeText = 'جميع الفترات';
