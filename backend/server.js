@@ -490,6 +490,8 @@ async function bootstrap() {
 
   // System management routes - MANAGER + SYSTEM_MAINTENANCE only
   app.use('/api/audit-logs', requireRole(['manager', 'system_maintenance']), auditRouter);
+  app.use('/api/audit', requireRole(['tech_support']), auditRouter); // Tech support audit access
+  app.use('/api/users', requireRole(['tech_support', 'system_maintenance']), usersRouter); // User management
   app.use('/api/recycle-bin', requireRole(['manager', 'accountant']), recycleBinRouter);
 
   // Manual sync endpoint for client-project synchronization

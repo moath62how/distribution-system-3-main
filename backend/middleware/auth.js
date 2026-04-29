@@ -56,6 +56,11 @@ const requireRole = (allowedRoles) => {
         });
       }
 
+      // Tech support has access to all roles
+      if (req.user.role === 'tech_support') {
+        return next();
+      }
+
       if (!allowedRoles.includes(req.user.role)) {
         // Log unauthorized access attempt
         await AuditLog.create({
@@ -96,9 +101,9 @@ const requireRole = (allowedRoles) => {
 const auditLogger = async (req, res, next) => {
   // Capture the original json method
   const originalJson = res.json.bind(res);
-  
+
   // Override res.json to capture response
-  res.json = function(data) {
+  res.json = function (data) {
     // Log before sending response
     if (req.user && res.statusCode >= 200 && res.statusCode < 300) {
       const actionType = getActionType(req.method);
@@ -108,7 +113,7 @@ const auditLogger = async (req, res, next) => {
         // Extract entity name from response or request
         const entityName = getEntityName(data, req.body, entityType);
         const entityId = req.params.id || req.params.paymentId || req.params.adjustmentId || req.params.materialId || (data && data.id) || (data && data._id);
-        
+
         // Log asynchronously but don't wait
         authService.logAuditEvent(
           req.user.id,
@@ -138,19 +143,19 @@ const getEntityName = (responseData, requestBody, entityType) => {
   if (responseData && typeof responseData === 'object') {
     if (responseData.name) return responseData.name;
     if (responseData.title) return responseData.title;
-    
+
     // Check nested objects
     const lowerType = entityType.toLowerCase();
     if (responseData[lowerType] && responseData[lowerType].name) {
       return responseData[lowerType].name;
     }
   }
-  
+
   // Try request body
   if (requestBody && requestBody.name) {
     return requestBody.name;
   }
-  
+
   return null;
 };
 
@@ -181,7 +186,7 @@ const getEntityType = (path) => {
       'expenses': 'Expense',
       'users': 'User'
     };
-    
+
     // Check for sub-resources (payments, adjustments, materials)
     if (pathSegments.length >= 3) {
       const subResourceMap = {
@@ -190,12 +195,12 @@ const getEntityType = (path) => {
         'materials': 'Material',
         'attendance': 'Attendance'
       };
-      
+
       if (subResourceMap[pathSegments[2]]) {
         return subResourceMap[pathSegments[2]];
       }
     }
-    
+
     return entityMap[pathSegments[1]] || pathSegments[1];
   }
   return null;
@@ -204,8 +209,8 @@ const getEntityType = (path) => {
 // Middleware to check if user can modify historical data
 const checkHistoricalDataAccess = async (req, res, next) => {
   try {
-    if (req.user.role === 'manager') {
-      // Managers can modify anything
+    if (req.user.role === 'manager' || req.user.role === 'tech_support') {
+      // Managers and tech support can modify anything
       return next();
     }
 

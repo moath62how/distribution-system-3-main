@@ -10,31 +10,37 @@ class AuthService {
     this.JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '8h';
   }
 
-  async login(username, password, req) {
+  async login(identifier, password, req) {
     try {
-      // Find user by username
-      const user = await User.findOne({ username, active: true });
-      
+      // Find user by username or phone
+      const user = await User.findOne({
+        $or: [
+          { username: identifier },
+          { phone: identifier }
+        ],
+        active: true
+      });
+
       if (!user) {
-        await this.logAuditEvent(null, 'failed_login', 'User', null, null, { username }, req);
+        await this.logAuditEvent(null, 'failed_login', 'User', null, null, { identifier }, req);
         throw new Error('Invalid credentials');
       }
 
       // Check password
       const isPasswordValid = await user.comparePassword(password);
-      
+
       if (!isPasswordValid) {
-        await this.logAuditEvent(user._id, 'failed_login', 'User', user._id, null, { username }, req);
+        await this.logAuditEvent(user._id, 'failed_login', 'User', user._id, null, { identifier }, req);
         throw new Error('Invalid credentials');
       }
 
       // Generate JWT token
       const token = this.generateToken(user);
-      
+
       // Create session record
       const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
       const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000); // 8 hours
-      
+
       await UserSession.create({
         user_id: user._id,
         token_hash: tokenHash,
@@ -44,13 +50,14 @@ class AuthService {
       });
 
       // Log successful login
-      await this.logAuditEvent(user._id, 'login', 'User', user._id, null, { username }, req);
+      await this.logAuditEvent(user._id, 'login', 'User', user._id, null, { identifier }, req);
 
       return {
         token,
         user: {
           id: user._id,
           username: user.username,
+          phone: user.phone,
           role: user.role
         }
       };
@@ -63,7 +70,7 @@ class AuthService {
     try {
       const decoded = jwt.verify(token, this.JWT_SECRET);
       const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-      
+
       // Deactivate session
       await UserSession.updateOne(
         { token_hash: tokenHash },
@@ -72,7 +79,7 @@ class AuthService {
 
       // Log logout
       await this.logAuditEvent(decoded.sub, 'logout', 'User', decoded.sub, null, null, req);
-      
+
       return { message: 'Logged out successfully' };
     } catch (error) {
       throw new Error('Invalid token');
@@ -83,7 +90,7 @@ class AuthService {
     try {
       const decoded = jwt.verify(token, this.JWT_SECRET);
       const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-      
+
       // Check if session exists and is active
       const session = await UserSession.findOne({
         token_hash: tokenHash,
@@ -142,7 +149,7 @@ class AuthService {
       const newValues = { password_changed: true };
 
       await this.logAuditEvent(userId, 'update', 'User', userId, oldValues, newValues, req);
-      
+
       return { message: 'Password changed successfully' };
     } catch (error) {
       throw error;
@@ -160,7 +167,7 @@ class AuthService {
           console.error('Failed to fetch user for audit log:', userError.message);
         }
       }
-      
+
       // Generate description if entity name is provided
       let description = null;
       if (entityName) {
@@ -169,7 +176,7 @@ class AuthService {
           'update': 'تعديل',
           'delete': 'حذف'
         };
-        
+
         const entityMap = {
           'Client': 'عميل',
           'Supplier': 'مورد',
@@ -185,12 +192,12 @@ class AuthService {
           'Material': 'مادة',
           'Attendance': 'حضور'
         };
-        
+
         const action = actionMap[actionType] || actionType;
         const entity = entityMap[entityType] || entityType;
         description = `${action} ${entity} "${entityName}"`;
       }
-      
+
       // Create audit log entry
       await AuditLog.create({
         user_id: userId,
@@ -247,6 +254,20 @@ class AuthService {
           active: true
         });
         console.log('System Maintenance user created: صيانة_النظام');
+      }
+
+      // Create Tech Support user
+      const existingTechSupport = await User.findOne({ role: 'tech_support' });
+      if (!existingTechSupport) {
+        await User.create({
+          username: 'الدعم_الفني',
+          phone: '+201234567890',
+          password: 'techsupport123', // Will be hashed by pre-save hook
+          role: 'tech_support',
+          active: true
+        });
+        console.log('Tech Support user created: الدعم_الفني');
+        console.log('  Phone: +201234567890 (login with: 01234567890 or 1234567890 or +201234567890)');
       }
 
       console.log('All default users are ready');

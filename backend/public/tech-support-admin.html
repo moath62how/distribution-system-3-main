@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>لوحة الدعم الفني - إنفرا فاينانس</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="/css/main.css" rel="stylesheet">
+    <link href="/css/modern-theme.css" rel="stylesheet">
+    <link href="/css/material-theme.css" rel="stylesheet">
+    <link href="/css/list-page-common.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .admin-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .admin-header {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .admin-tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .admin-tab {
+            padding: 1rem 2rem;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #64748b;
+            transition: all 0.3s;
+        }
+
+        .admin-tab.active {
+            color: #1e293b;
+            border-bottom-color: #1e293b;
+        }
+
+        .admin-tab:hover {
+            color: #1e293b;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #1e293b;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #1e293b;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #334155;
+        }
+
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+
+        .btn-success {
+            background: #16a34a;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #15803d;
+        }
+
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .users-table th,
+        .users-table td {
+            padding: 1rem;
+            text-align: right;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .users-table th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .users-table tr:hover {
+            background: #f8fafc;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .badge-manager {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-accountant {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-tech {
+            background: #fce7f3;
+            color: #9f1239;
+        }
+
+        .badge-maintenance {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-active {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-inactive {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .logs-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        .logs-table th,
+        .logs-table td {
+            padding: 0.75rem;
+            text-align: right;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .logs-table th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 2rem;
+        }
+
+        .pagination button {
+            padding: 0.5rem 1rem;
+            border: 1px solid #e2e8f0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .pagination button.active {
+            background: #1e293b;
+            color: white;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="admin-container">
+        <div class="admin-header">
+            <h1>لوحة الدعم الفني</h1>
+            <p>إدارة المستخدمين وعرض سجلات النظام</p>
+        </div>
+
+        <div class="admin-tabs">
+            <button class="admin-tab active" onclick="switchTab('users')">إدارة المستخدمين</button>
+            <button class="admin-tab" onclick="switchTab('logs')">سجلات النظام</button>
+        </div>
+
+        <!-- Users Management Tab -->
+        <div id="users-tab" class="tab-content active">
+            <div class="card">
+                <h2>إضافة مستخدم جديد</h2>
+                <form id="createUserForm">
+                    <div class="form-group">
+                        <label for="username">اسم المستخدم</label>
+                        <input type="text" id="username" name="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">رقم الهاتف (اختياري)</label>
+                        <input type="tel" id="phone" name="phone" placeholder="+201234567890">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">كلمة المرور</label>
+                        <input type="password" id="password" name="password" required minlength="8">
+                    </div>
+                    <div class="form-group">
+                        <label for="role">الدور</label>
+                        <select id="role" name="role" required>
+                            <option value="manager">مدير</option>
+                            <option value="accountant">محاسب</option>
+                            <option value="tech_support">دعم فني</option>
+                            <option value="system_maintenance">صيانة النظام</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">إضافة مستخدم</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>المستخدمون الحاليون</h2>
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>اسم المستخدم</th>
+                            <th>رقم الهاتف</th>
+                            <th>الدور</th>
+                            <th>الحالة</th>
+                            <th>تاريخ الإنشاء</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr>
+                            <td colspan="6" style="text-align: center;">جاري التحميل...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Audit Logs Tab -->
+        <div id="logs-tab" class="tab-content">
+            <div class="card">
+                <h2>سجلات النظام</h2>
+                <div class="filters">
+                    <div class="form-group">
+                        <label for="filterActionType">نوع العملية</label>
+                        <select id="filterActionType">
+                            <option value="">الكل</option>
+                            <option value="create">إنشاء</option>
+                            <option value="update">تحديث</option>
+                            <option value="delete">حذف</option>
+                            <option value="login">تسجيل دخول</option>
+                            <option value="logout">تسجيل خروج</option>
+                            <option value="failed_login">فشل تسجيل دخول</option>
+                            <option value="blocked_attempt">محاولة محظورة</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="filterEntityType">نوع الكيان</label>
+                        <select id="filterEntityType">
+                            <option value="">الكل</option>
+                            <option value="User">مستخدم</option>
+                            <option value="Client">عميل</option>
+                            <option value="Supplier">مورد</option>
+                            <option value="Contractor">مقاول</option>
+                            <option value="Crusher">كسارة</option>
+                            <option value="Employee">موظف</option>
+                            <option value="Delivery">تسليمة</option>
+                            <option value="Payment">دفعة</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="filterDateFrom">من تاريخ</label>
+                        <input type="date" id="filterDateFrom">
+                    </div>
+                    <div class="form-group">
+                        <label for="filterDateTo">إلى تاريخ</label>
+                        <input type="date" id="filterDateTo">
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="loadAuditLogs()">بحث</button>
+                <button class="btn btn-success" onclick="exportLogs()">تصدير CSV</button>
+
+                <div style="margin-top: 2rem;">
+                    <table class="logs-table">
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>المستخدم</th>
+                                <th>الدور</th>
+                                <th>العملية</th>
+                                <th>الكيان</th>
+                                <th>الوصف</th>
+                                <th>IP</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsTableBody">
+                            <tr>
+                                <td colspan="7" style="text-align: center;">جاري التحميل...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div id="logsPagination" class="pagination"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/auth.js"></script>
+    <script src="/js/utils/api.js"></script>
+    <script src="/js/tech-support-admin.js"></script>
+</body>
+
+</html>

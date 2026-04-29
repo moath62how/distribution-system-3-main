@@ -24,7 +24,7 @@ class UserController {
 
   async createUser(req, res) {
     try {
-      const { username, password, role } = req.body;
+      const { username, phone, password, role } = req.body;
 
       if (!username || !password || !role) {
         return res.status(400).json({
@@ -42,12 +42,29 @@ class UserController {
         });
       }
 
-      const user = await User.create({
+      // Check if phone already exists (if provided)
+      if (phone) {
+        const existingPhone = await User.findOne({ phone });
+        if (existingPhone) {
+          return res.status(400).json({
+            success: false,
+            message: 'رقم الهاتف مستخدم بالفعل'
+          });
+        }
+      }
+
+      const userData = {
         username,
         password, // Will be hashed by pre-save hook
         role,
         active: true
-      });
+      };
+
+      if (phone) {
+        userData.phone = phone;
+      }
+
+      const user = await User.create(userData);
 
       // Log user creation
       await authService.logAuditEvent(
@@ -56,8 +73,9 @@ class UserController {
         'User',
         user._id,
         null,
-        { username, role },
-        req
+        { username, phone, role },
+        req,
+        username
       );
 
       res.status(201).json({
@@ -89,7 +107,7 @@ class UserController {
       }
 
       const oldValues = user.toJSON();
-      
+
       // Update user
       Object.keys(updates).forEach(key => {
         if (key !== 'password') { // Password updates handled separately

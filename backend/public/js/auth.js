@@ -17,32 +17,34 @@ class AuthManager {
 
     hasRole(roles) {
         if (!this.user) return false;
+        // Tech support has access to all roles
+        if (this.user.role === 'tech_support') return true;
         if (typeof roles === 'string') roles = [roles];
         return roles.includes(this.user.role);
     }
 
     canEditPrices() {
-        return this.hasRole('manager');
+        return this.hasRole(['manager', 'tech_support']);
     }
 
     canDeleteRecords() {
-        return this.hasRole('manager');
+        return this.hasRole(['manager', 'tech_support']);
     }
 
     canAccessRecycleBin() {
-        return this.hasRole(['manager', 'accountant']);
+        return this.hasRole(['manager', 'accountant', 'tech_support']);
     }
 
     canRestoreRecords() {
-        return this.hasRole('manager');
+        return this.hasRole(['manager', 'tech_support']);
     }
 
     canManageUsers() {
-        return this.hasRole('system_maintenance');
+        return this.hasRole(['system_maintenance', 'tech_support']);
     }
 
     canAccessFinancialData() {
-        return this.hasRole(['manager', 'accountant']);
+        return this.hasRole(['manager', 'accountant', 'tech_support']);
     }
 
     getAuthHeaders() {
@@ -132,7 +134,7 @@ class AuthManager {
         if (!this.user) return;
 
         const userRole = this.user.role;
-        
+
         // Hide/show elements based on role
         document.querySelectorAll('[data-role]').forEach(element => {
             const requiredRoles = element.dataset.role.split(',');
@@ -183,7 +185,8 @@ class AuthManager {
         const roleNames = {
             'manager': 'المدير',
             'accountant': 'المحاسب',
-            'system_maintenance': 'صيانة النظام'
+            'system_maintenance': 'صيانة النظام',
+            'tech_support': 'الدعم الفني'
         };
         return roleNames[role] || role;
     }
@@ -193,7 +196,7 @@ class AuthManager {
 const authManager = new AuthManager();
 
 // Auto-check authentication on page load (except login page)
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     if (!window.location.pathname.includes('login.html')) {
         if (authManager.checkAuth()) {
             authManager.updateUIForRole();

@@ -9,7 +9,7 @@ const auditLogSchema = new mongoose.Schema({
   user_role: {
     type: String,
     required: true,
-    enum: ['manager', 'accountant', 'system_maintenance', 'unknown']
+    enum: ['manager', 'accountant', 'system_maintenance', 'tech_support', 'unknown']
   },
   action_type: {
     type: String,
@@ -55,27 +55,27 @@ const auditLogSchema = new mongoose.Schema({
 });
 
 // Prevent updates and deletes on audit logs
-auditLogSchema.pre('updateOne', function() {
+auditLogSchema.pre('updateOne', function () {
   throw new Error('Audit logs are immutable and cannot be updated');
 });
 
-auditLogSchema.pre('updateMany', function() {
+auditLogSchema.pre('updateMany', function () {
   throw new Error('Audit logs are immutable and cannot be updated');
 });
 
-auditLogSchema.pre('findOneAndUpdate', function() {
+auditLogSchema.pre('findOneAndUpdate', function () {
   throw new Error('Audit logs are immutable and cannot be updated');
 });
 
-auditLogSchema.pre('deleteOne', function() {
+auditLogSchema.pre('deleteOne', function () {
   throw new Error('Audit logs are immutable and cannot be deleted');
 });
 
-auditLogSchema.pre('deleteMany', function() {
+auditLogSchema.pre('deleteMany', function () {
   throw new Error('Audit logs are immutable and cannot be deleted');
 });
 
-auditLogSchema.pre('findOneAndDelete', function() {
+auditLogSchema.pre('findOneAndDelete', function () {
   throw new Error('Audit logs are immutable and cannot be deleted');
 });
 

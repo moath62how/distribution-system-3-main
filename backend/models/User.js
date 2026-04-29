@@ -10,6 +10,12 @@ const userSchema = new mongoose.Schema({
     minlength: 3,
     maxlength: 50
   },
+  phone: {
+    type: String,
+    unique: true,
+    sparse: true,
+    trim: true
+  },
   password: {
     type: String,
     required: true,
@@ -18,7 +24,7 @@ const userSchema = new mongoose.Schema({
   role: {
     type: String,
     required: true,
-    enum: ['manager', 'accountant', 'system_maintenance'],
+    enum: ['manager', 'accountant', 'system_maintenance', 'tech_support'],
     default: 'accountant'
   },
   active: {
@@ -38,20 +44,20 @@ const userSchema = new mongoose.Schema({
 });
 
 // Hash password before saving
-userSchema.pre('save', async function() {
+userSchema.pre('save', async function () {
   if (!this.isModified('password')) return;
-  
+
   const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
 });
 
 // Compare password method
-userSchema.methods.comparePassword = async function(candidatePassword) {
+userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
 // Exclude password from JSON output
-userSchema.methods.toJSON = function() {
+userSchema.methods.toJSON = function () {
   const user = this.toObject();
   delete user.password;
   return user;

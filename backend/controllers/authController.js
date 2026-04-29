@@ -3,17 +3,18 @@ const authService = require('../services/authService');
 class AuthController {
   async login(req, res) {
     try {
-      const { username, password } = req.body;
+      const { username, phone, password } = req.body;
+      const identifier = phone || username;
 
-      if (!username || !password) {
+      if (!identifier || !password) {
         return res.status(400).json({
           error: 'Missing credentials',
-          message: 'Username and password are required'
+          message: 'Username/Phone and password are required'
         });
       }
 
-      const result = await authService.login(username, password, req);
-      
+      const result = await authService.login(identifier, password, req);
+
       res.json({
         success: true,
         message: 'Login successful',
@@ -31,7 +32,7 @@ class AuthController {
     try {
       const token = req.token;
       const result = await authService.logout(token, req);
-      
+
       res.json({
         success: true,
         message: result.message
@@ -84,7 +85,7 @@ class AuthController {
         newPassword,
         req
       );
-      
+
       res.json({
         success: true,
         message: result.message
@@ -101,7 +102,7 @@ class AuthController {
     try {
       const user = await authService.validateToken(req.token);
       const newToken = authService.generateToken(user);
-      
+
       res.json({
         success: true,
         data: {
