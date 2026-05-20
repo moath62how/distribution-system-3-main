@@ -1,0 +1,18 @@
+.protected-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  margin-right: 280px;
+  background: var(--gray-50);
+  min-height: 100vh;
+}
+
+@media (max-width: 1024px) {
+  .main-content {
+    margin-right: 0;
+    padding-top: 4rem;
+  }
+}
